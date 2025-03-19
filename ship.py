@@ -235,13 +235,102 @@ def visualize_ship(ship, path, title = ""):
     # show the visualization
     plt.show()   
 
-def bot1(info, visualize):
-    bot_pos = info['bot']
-    print(bot_pos)
+def visualize_possible_cells(ship, cells, title = ""): 
 
-    num_closed = 0
-    for dr, dc in directions:
-        pass
+    # hashmap that maps item in 2D ship array representation to corresponding color for visualization
+    color_map = {
+        0: 'white', # Empty space
+        1: 'black',  # Wall
+        2: 'deepskyblue',   # Bot
+    }
+    
+    d = len(ship)
+
+    # set up a numpy array to represent the img
+    img = np.zeros((d, d, 3))
+    
+    # loop through the ship 2D array and set the corresponding color based on the value in the array and the color_map
+    for i in range(d):
+        for j in range(d):
+            img[i][j] = mcolors.to_rgb(color_map[ship[i][j]]) 
+
+    for cell in cells:
+        img[cell[0]][cell[1]] = mcolors.to_rgb('c') 
+    
+
+    # display the graph
+    plt.imshow(img, interpolation='nearest')
+    plt.xticks([])
+    plt.yticks([])
+
+    # if a title is requested, set it
+    if title != "":
+        plt.title(title)
+    
+    # show the visualization
+    plt.show()   
+
+def bot1(info, visualize):
+    bot_r, bot_c = info['bot']
+    ship = info['empty_ship']
+
+    curr_r, curr_c = bot_r, bot_c
+
+    neighbor_map, blocked_neighbors = create_neighbor_map(ship)
+
+    num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
+    
+    print('curr_blocked_ns', num_curr_blocked_ns)
+
+    possible_cells = blocked_neighbors[num_curr_blocked_ns]
+
+    visualize_possible_cells(ship, possible_cells)
+
+    direction_o = {
+        (0,1) : 0,
+        (0,-1) : 0,
+        (-1,0) : 0,
+        (1,0) : 0
+    }
+
+    direction_c = {
+        (0,1) : set(),
+        (0,-1) : set(),
+        (-1,0) : set(),
+        (1,0) : set()
+    }
+
+
+
+    for pcr, pcc in possible_cells:
+        print(pcr, pcc)
+        for dr, dc in directions:
+            nr = pcr + dr
+            nc = pcc + dc
+            print(nr,nc, ship[nr][nc])
+            if ship[nr][nc] == 0:
+                direction_o[(dr,dc)] += 1
+            else:
+                direction_c[(dr,dc)].add((pcr,pcc))
+                print(f"adding pcr {pcr} and pcc {pcc} to directionc {(dr,dc)}")
+    
+    print(direction_c)
+    
+    best_dir = max(direction_o, key = direction_o.get)
+       
+    print(direction_o)
+    nr,nc = curr_r + best_dir[0], curr_c + best_dir[1]
+
+    if ship[nr][nc] == 0: # open
+        set_possible_cells = set(possible_cells).difference(direction_c[best_dir])
+    else:
+        set_possible_cells = direction_c[best_dir]
+    
+    visualize_possible_cells(ship, list(set_possible_cells))
+
+
+    print(best_dir)
+
 
 
 # Main for testing
