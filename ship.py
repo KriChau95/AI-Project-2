@@ -106,8 +106,8 @@ def init_ship(dimension):
     
     # create sets that  store coordinates of all the open cells and all the closed cells
     open_cells = set()
-    for r in range(d):
-        for c in range(d):
+    for r in range(dimension):
+        for c in range(dimension):
             if ship[r][c] == 0:
                 open_cells.add((r,c))
     
@@ -255,7 +255,7 @@ def main():
     visualize_ship(empty_ship, None)
     neighbor_map, blocked_neighbors = create_neighbor_map(empty_ship)
     temp_sum = 0
-    
+
     for key,value in blocked_neighbors.items():
         print(key, value, len(value))
         temp_sum += len(value)
@@ -263,6 +263,13 @@ def main():
     visualize_neighbor_map(neighbor_map)
     print("\n\n",temp_sum)
     bot1(info, visualize=False)
+
+    num_closed = 0
+    for r in range(30):
+        for c in range(30):
+            if ship[r][c] == 1:
+                num_closed += 1
+    print(num_closed)
 
 # Run Main
 if __name__ == "__main__":
