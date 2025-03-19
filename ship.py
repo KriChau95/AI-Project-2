@@ -6,23 +6,23 @@ import numpy as np
 import heapq
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors 
-from collections import deque
+from collections import deque, defaultdict
 import copy
 
 global directions
 directions = [(0,1), (0,-1), (1,0), (-1,0)] # array to store adjacent directions needed during various traversal
+diagonal_directions = [(0,1), (0,-1), (1,0), (-1,0), (-1,1), (-1,-1), (1,1), (1,-1)]
 random.seed(30)
 
 # Initializes the maze with bot, button, fire, and open and closed cells based on an input dimension d - number of rows and columns
 def init_ship(dimension):
         
-    d = dimension
+    d = dimension - 2
     
     # 0 = open cell
     # 1 = closed cell
     # 2 = bot
-    # -2 = button
-    # -1 = fire
+    # 3 = rat
 
     # initialize ship to size dimension
     ship = [[1] * d for _ in range(d)] 
@@ -34,6 +34,7 @@ def init_ship(dimension):
 
     single_neighbor = set() # stores all cells' blocked coordinates that have exactly 1 open neighbor
     closed = set() # stores cells that have no chance for being blocked coordinates with exactly 1 open neighbor
+    
 
     # initialize single_neighbor set based on first open cell
     for dr, dc in directions:
@@ -92,51 +93,184 @@ def init_ship(dimension):
         r,c = random.choice(list_closed_neighbors) # choose a random closed neighbor
         ship[r][c] = 0 # open it
 
+
+    # Condense all the information created within this function into a hashmap and return the hashmap
+
+    ship.insert(0,[1] * dimension)
+    ship.append([1] * dimension)
+
+    for i in range(1,dimension-1):
+        row = ship[i]
+        new_row = [1] + row + [1]
+        ship[i] = new_row
+    
     # create sets that  store coordinates of all the open cells and all the closed cells
     open_cells = set()
     for r in range(d):
         for c in range(d):
             if ship[r][c] == 0:
                 open_cells.add((r,c))
+    
+    print("num open cells", len(open_cells))
+
+    empty_ship = copy.deepcopy(ship)
 
     # randomly place bot in one of the remaining open cells
     bot_r,bot_c = (random.choice(list(open_cells)))
     open_cells.remove((bot_r,bot_c))
-    
-    # randomly place fire in one of the remaining open cells
-    fire_r,fire_c = (random.choice(list(open_cells)))
-    open_cells.remove((fire_r,fire_c))
 
     # randomly place button in one of the remaining open cels
-    button_r,button_c = (random.choice(list(open_cells)))
-    open_cells.remove((button_r,button_c))
+    rat_r,rat_c = (random.choice(list(open_cells)))
+    open_cells.remove((rat_r,rat_c))
 
     # modifying the cells in the 2D array to store the appropriate special objects - bot, fire, burron
     ship[bot_r][bot_c] = 2
-    ship[fire_r][fire_c] = -1
-    ship[button_r][button_c] = -2
-
-    # fire_q is a double ended que that stores the open cells adjacent to the initial fire
-    
-    fire_q = deque()
-
-    for dr, dc in directions:
-        nr, nc = fire_r + dr, fire_c + dc
-        if 0 <= nr < d and 0 <= nc < d and ship[nr][nc] == 0:
-            fire_q.append((nr,nc))
-
-    # Condense all the information created within this function into a hashmap and return the hashmap
+    ship[rat_r][rat_c] = 3
 
     info = dict()
 
     info['ship'] = ship
+    info['empty_ship'] = empty_ship
     info['bot'] = (bot_r, bot_c)
-    info['fire'] = (fire_r, fire_c)
-    info['button'] = (button_r, button_c)
-    info['fire_q'] = fire_q
+    info['rat'] = (rat_r, rat_c)
 
     return info
   
+
+def create_neighbor_map(ship):
+    blocked_cells = defaultdict(list)
+    d = len(ship)
+    neighbor_map = [[-1] * d for _ in range(d)]
+    for r in range(1,d-1):
+        for c in range(1,d-1):
+            if ship[r][c] == 1:
+                neighbor_map[r][c] = -1
+                continue
+            blocked_neighbors = 0
+            for dr, dc in diagonal_directions:
+                nr,nc = r + dr, c + dc
+                if ship[nr][nc] == 1:
+                    blocked_neighbors += 1
+            neighbor_map[r][c] = blocked_neighbors
+            blocked_cells[blocked_neighbors].append((r,c))
+
+    return neighbor_map, blocked_cells
+
+def visualize_neighbor_map(map, title = ''):
+    # hashmap that maps item in 2D ship array representation to corresponding color for visualization
+    color_map = {
+        -1: 'black',
+        0: 'white',
+        1: 'indianred',
+        2: 'darkorange',  
+        3: 'olivedrab',  
+        4: 'mediumturquoise',
+        5: 'dodgerblue',
+        6: 'rebeccapurple',
+        7: 'magenta',
+        8: 'yellow'
+    }
+    
+    d = len(map)
+
+    # set up a numpy array to represent the img
+    img = np.zeros((d, d, 3))
+    
+    # loop through the ship 2D array and set the corresponding color based on the value in the array and the color_map
+    for i in range(d):
+        for j in range(d):
+            img[i][j] = mcolors.to_rgb(color_map[map[i][j]])  
+    
+
+    # display the graph
+    plt.imshow(img, interpolation='nearest')
+    plt.xticks([])
+    plt.yticks([])
+
+    # if a title is requested, set it
+    if title != "":
+        plt.title(title)
+    
+    # show the visualization
+    plt.show()   
+
+
+    
+
+def visualize_ship(ship, path, title = ""): 
+
+    # hashmap that maps item in 2D ship array representation to corresponding color for visualization
+    color_map = {
+        0: 'white', # Empty space
+        1: 'black',  # Wall
+        2: 'deepskyblue',   # Bot
+        3: 'goldenrod'  # Rat
+    }
+    
+    d = len(ship)
+
+    # set up a numpy array to represent the img
+    img = np.zeros((d, d, 3))
+    
+    # loop through the ship 2D array and set the corresponding color based on the value in the array and the color_map
+    for i in range(d):
+        for j in range(d):
+            img[i][j] = mcolors.to_rgb(color_map[ship[i][j]])  
+    
+    # display the path by coloring in all cells from start of path to end of path orange
+    if path is not None:
+        for i in range(len(path)):
+            r, c = path[i]
+            img[r][c] = mcolors.to_rgb('orange')
+
+    # display the graph
+    plt.imshow(img, interpolation='nearest')
+    plt.xticks([])
+    plt.yticks([])
+
+    # if a title is requested, set it
+    if title != "":
+        plt.title(title)
+    
+    # show the visualization
+    plt.show()   
+
+def bot1(info, visualize):
+    bot_pos = info['bot']
+    print(bot_pos)
+
+    num_closed = 0
+    for dr, dc in directions:
+        pass
+
+
+# Main for testing
+def main():
+
+    random.seed(15)
+    info = init_ship(30)
+    ship = info['ship']
+    empty_ship = info['empty_ship']
+    visualize_ship(ship, None)
+    visualize_ship(empty_ship, None)
+    neighbor_map, blocked_neighbors = create_neighbor_map(empty_ship)
+    temp_sum = 0
+    
+    for key,value in blocked_neighbors.items():
+        print(key, value, len(value))
+        temp_sum += len(value)
+        print()
+    visualize_neighbor_map(neighbor_map)
+    print("\n\n",temp_sum)
+    bot1(info, visualize=False)
+
+# Run Main
+if __name__ == "__main__":
+    main()
+
+
+
+
 # A* search algorithm implementation that takes in:
 # start - tuple of (start row, start col) of where to start search
 # map - contains information of map in current state - 2D array
@@ -203,7 +337,4 @@ def astar(start, map, button):
                     heapq.heappush(fringe, (est_total_cost, child))
 
     # if no path was found, return an empty list
-    return []               
-
-def bot1(info, fire_prog, visualize):
-    pass
+    return []        
