@@ -273,63 +273,88 @@ def visualize_possible_cells(ship, cells, title = ""):
 def bot1(info, visualize):
     bot_r, bot_c = info['bot']
     ship = info['empty_ship']
-
     curr_r, curr_c = bot_r, bot_c
-
     neighbor_map, blocked_neighbors = create_neighbor_map(ship)
-
     num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
-    
-    print('curr_blocked_ns', num_curr_blocked_ns)
-
     possible_cells = blocked_neighbors[num_curr_blocked_ns]
+    prev_dirc = (1,1)
 
-    visualize_possible_cells(ship, possible_cells)
+    while len(possible_cells) > 1:
 
-    direction_o = {
-        (0,1) : 0,
-        (0,-1) : 0,
-        (-1,0) : 0,
-        (1,0) : 0
-    }
+        num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
+        
+        print('curr_blocked_ns', num_curr_blocked_ns)
 
-    direction_c = {
-        (0,1) : set(),
-        (0,-1) : set(),
-        (-1,0) : set(),
-        (1,0) : set()
-    }
+        visualize_possible_cells(ship, possible_cells)
 
 
 
-    for pcr, pcc in possible_cells:
-        print(pcr, pcc)
-        for dr, dc in directions:
-            nr = pcr + dr
-            nc = pcc + dc
-            print(nr,nc, ship[nr][nc])
-            if ship[nr][nc] == 0:
-                direction_o[(dr,dc)] += 1
-            else:
-                direction_c[(dr,dc)].add((pcr,pcc))
-                print(f"adding pcr {pcr} and pcc {pcc} to directionc {(dr,dc)}")
-    
-    print(direction_c)
-    
-    best_dir = max(direction_o, key = direction_o.get)
-       
-    print(direction_o)
-    nr,nc = curr_r + best_dir[0], curr_c + best_dir[1]
+        direction_o = {
+            (0,1) : 0,
+            (0,-1) : 0,
+            (-1,0) : 0,
+            (1,0) : 0
+        }
 
-    if ship[nr][nc] == 0: # open
-        set_possible_cells = set(possible_cells).difference(direction_c[best_dir])
-    else:
-        set_possible_cells = direction_c[best_dir]
-    
-    visualize_possible_cells(ship, list(set_possible_cells))
+        direction_c = {
+            (0,1) : set(),
+            (0,-1) : set(),
+            (-1,0) : set(),
+            (1,0) : set()
+        }
 
 
-    print(best_dir)
+
+        for pcr, pcc in possible_cells:
+            # print(pcr, pcc)
+            for dr, dc in directions:
+                nr = pcr + dr
+                nc = pcc + dc
+                # print(nr,nc, ship[nr][nc])
+                if ship[nr][nc] == 0:
+                    direction_o[(dr,dc)] += 1
+                else:
+                    direction_c[(dr,dc)].add((pcr,pcc))
+                    # print(f"adding pcr {pcr} and pcc {pcc} to directionc {(dr,dc)}")
+        
+        # print(direction_c)
+        
+        best_dir_arr = sorted(direction_o, key = lambda x: direction_o[x])
+        print("sorted direction array", best_dir_arr, "previous direction", prev_dirc)
+        if best_dir_arr[-1] == (-prev_dirc[0], -prev_dirc[1]):
+            best_dir = best_dir_arr[-2]
+        else:
+            best_dir = best_dir_arr[-1]
+            
+
+        print(direction_o)
+        nr,nc = curr_r + best_dir[0], curr_c + best_dir[1]
+
+        if ship[nr][nc] == 0: # open
+            set_possible_cells = set(possible_cells).difference(direction_c[best_dir])
+            curr_r, curr_c = nr, nc
+        else:
+            set_possible_cells = direction_c[best_dir]
+        
+        visualize_possible_cells(ship, list(set_possible_cells))
+        
+        num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
+
+        possible_cells = set()
+
+        for cr,cc in set_possible_cells:
+            nr,nc = cr + best_dir[0], cc + best_dir[1]
+            if num_curr_blocked_ns == neighbor_map[nr][nc]:
+                possible_cells.add((nr,nc))
+
+
+
+        prev_dirc = best_dir
+         
+
+        print(best_dir)
+        print("YOOOOO",curr_r,curr_c)
+        print("possible cells", possible_cells)
 
 
 
