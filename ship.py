@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors 
 from collections import deque, defaultdict
 import copy
+import math
 
 global directions
 directions = [(0,1), (0,-1), (1,0), (-1,0)] # array to store adjacent directions needed during various traversal
@@ -270,24 +271,42 @@ def visualize_possible_cells(ship, cells, title = ""):
     # show the visualization
     plt.show()   
 
+def ping(info, alpha=0.2):
+
+    bot_r, bot_c = info['bot']
+    rat_r, rat_c = info['rat']
+
+    def heuristic():
+        return abs(bot_r - rat_r) + abs(bot_c - rat_c)
+
+    math.e ** (-alpha * (heuristic() - 1))
+
 def bot1(info, visualize):
     bot_r, bot_c = info['bot']
     ship = info['empty_ship']
     curr_r, curr_c = bot_r, bot_c
     neighbor_map, blocked_neighbors = create_neighbor_map(ship)
     num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
-    possible_cells = blocked_neighbors[num_curr_blocked_ns]
+    possible_cells = set_possible_cells = set(blocked_neighbors[num_curr_blocked_ns])
     prev_dirc = (1,1)
+     
+    i = 1
 
     while len(possible_cells) > 1:
 
+        print("ITERATION", i)
+
         num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
-        
+        possible_cells = set()
+
+        for cellr,cellc in set_possible_cells:
+            if neighbor_map[cellr][cellc] == num_curr_blocked_ns:
+                possible_cells.add((cellr,cellc))
+
+
         print('curr_blocked_ns', num_curr_blocked_ns)
-
-        visualize_possible_cells(ship, possible_cells)
-
-
+        
+        # visualize_possible_cells(ship, possible_cells)
 
         direction_o = {
             (0,1) : 0,
@@ -302,7 +321,6 @@ def bot1(info, visualize):
             (-1,0) : set(),
             (1,0) : set()
         }
-
 
 
         for pcr, pcc in possible_cells:
@@ -328,34 +346,84 @@ def bot1(info, visualize):
             
 
         print(direction_o)
+    
         nr,nc = curr_r + best_dir[0], curr_c + best_dir[1]
 
         if ship[nr][nc] == 0: # open
+            print('moved to open cell:', nr,nc)
             set_possible_cells = set(possible_cells).difference(direction_c[best_dir])
             curr_r, curr_c = nr, nc
+            num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
+
+            new_set_possible_cells = set()
+            for elem_r, elem_c in set_possible_cells:
+                new_cell = (elem_r + best_dir[0], elem_c + best_dir[1])
+                new_set_possible_cells.add(new_cell)
+            set_possible_cells = copy.deepcopy(new_set_possible_cells)
+
         else:
+            print(nr,nc, 'was closed, still at', curr_r, curr_c )
             set_possible_cells = direction_c[best_dir]
         
-        visualize_possible_cells(ship, list(set_possible_cells))
+        print(set_possible_cells)
+        # visualize_possible_cells(ship, list(set_possible_cells))
+
         
-        num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
 
-        possible_cells = set()
+        # num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
+        # possible_cells = set()
 
-        for cr,cc in set_possible_cells:
-            nr,nc = cr + best_dir[0], cc + best_dir[1]
-            if num_curr_blocked_ns == neighbor_map[nr][nc]:
-                possible_cells.add((nr,nc))
+        # for cr,cc in set_possible_cells:
+        #     nr,nc = cr + best_dir[0], cc + best_dir[1]
+        #     if num_curr_blocked_ns == neighbor_map[nr][nc]:
+        #         possible_cells.add((nr,nc))
 
 
 
         prev_dirc = best_dir
-         
 
-        print(best_dir)
-        print("YOOOOO",curr_r,curr_c)
-        print("possible cells", possible_cells)
 
+        i += 1
+    
+    curr_r, curr_c = set_possible_cells.pop()
+    print("we start phase 2 here", curr_r,curr_c)
+
+    info['ship'][bot_r][bot_c] = 0
+    info['ship'][curr_r][curr_c] = 2
+
+    visualize_ship(info['ship'], None)
+
+    curr_ship = info['ship']
+
+    n = 100
+
+    prob_ping = copy.deepcopy(info['empty_ship'])
+
+    for r in range(len(prob_ping)):
+        for c in range(len(prob_ping[r])):
+            if prob_ping[r][c] == 0:
+                prob_ping[r][c] = (0,0)
+    
+
+
+
+    # [(up):(0,1), (down):(0,0), (left):()]
+    i = 0
+    while True:
+        ping(info)
+        print("iteration", i)
+        cell_prop = {}
+        for dr,dc in directions:
+            tr,tc = curr_r+dr, curr_c+dc
+            if prob_ping[tr][tc] != 1:
+                cell_prop[(tr,tc)] = (prob_ping[tr][tc])
+        sorted_cell_prop = sorted(cell_prop.items(), key=lambda x:(x[1][0],x[1][1]))
+        print(sorted_cell_prop)
+        curr_ship[curr_r][curr_c] = 0
+        curr_r,curr_c = sorted_cell_prop[0][0]
+        curr_ship[curr_r][curr_c] = 2
+        visualize_ship(curr_ship, None)
+        i+=1
 
 
 # Main for testing
@@ -366,16 +434,16 @@ def main():
     ship = info['ship']
     empty_ship = info['empty_ship']
     visualize_ship(ship, None)
-    visualize_ship(empty_ship, None)
+    # visualize_ship(empty_ship, None)
     neighbor_map, blocked_neighbors = create_neighbor_map(empty_ship)
     temp_sum = 0
 
-    for key,value in blocked_neighbors.items():
-        print(key, value, len(value))
-        temp_sum += len(value)
-        print()
+    # for key,value in blocked_neighbors.items():
+    #     print(key, value, len(value))
+    #     temp_sum += len(value)
+    #     print()
     visualize_neighbor_map(neighbor_map)
-    print("\n\n",temp_sum)
+    # print("\n\n",temp_sum)
     bot1(info, visualize=False)
 
     num_closed = 0
