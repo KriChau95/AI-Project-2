@@ -138,6 +138,74 @@ def init_ship(dimension):
     return info
   
 
+# A* search algorithm implementation that takes in:
+# start - tuple of (start row, start col) of where to start search
+# map - contains information of map in current state - 2D array
+# button - tuple of (button row, button col) of final destination
+def astar(start, map, button):
+    
+    # heuristic used for A* - Manhattan distance between 2 points (x_1, y_1) and (x_2, y_2)
+    # returns sum of absolute value in difference of x and absolute value in difference of y
+    # takes in tuple cell1 (row, col) and returns Manhattan distance to goal - button
+    def heuristic(cell1):
+        return abs(cell1[0] - button[0]) + abs(cell1[1]-button[1])
+    
+    # initializing useful variables for A*
+    d = len(map)
+    fringe = []
+
+    # more initialization of variables
+    heapq.heappush(fringe, (heuristic(start),start))
+    # items on the fringe (heap) will look like (23, (2,5))
+    total_costs = dict()
+    total_costs[start] = 0
+    prev = dict()
+    prev[start] = None
+
+    # A* loop
+    while fringe:
+        
+        # pop the cell with the lowest estimated cost
+        curr = heapq.heappop(fringe)
+
+        # curr = (heuristic((x,y)), (x,y))
+        # curr pos = curr[1]
+        # heuristic evaluated at curr pos = curr[0]
+
+        # if we have reached the goal, reconstruct the path
+        if curr[1] == button:
+            
+            curr_p = curr[1]
+            path = deque()
+            while curr_p != None:
+                path.appendleft(curr_p)
+                curr_p = prev[curr_p]
+            return list(path)
+        
+        # get current cell's row and column
+        r,c = curr[1]
+
+        # explore neighboring cells
+        for dr, dc in directions:
+            nr, nc = r + dr, c + dc # calculating neighbor's coordinates
+            child = (nr,nc) # child is tuple that represents neighbor's coordinates
+
+            # check if neighbor is in bounds, not a wall, and not a fire
+            if 0 <= nr < d and 0 <= nc < d and (map[nr][nc] != 1 and map[nr][nc] != -1):
+                cost = total_costs[curr[1]] + 1
+
+                # compute estimated total cost as sum of actual cost and heurisitc
+                est_total_cost = cost + heuristic(child)
+
+                # if this path to child is better (or if it's not visited yet), update
+                if child not in total_costs:
+                    prev[child] = curr[1]
+                    total_costs[child] = cost
+                    heapq.heappush(fringe, (est_total_cost, child))
+
+    # if no path was found, return an empty list
+    return []        
+
 def create_neighbor_map(ship):
     blocked_cells = defaultdict(list)
     d = len(ship)
@@ -234,7 +302,61 @@ def visualize_ship(ship, path, title = ""):
         plt.title(title)
     
     # show the visualization
-    plt.show()   
+    plt.show() 
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
+def visualize_rat_prob_map(rat_prob_map, path=None, title=""):
+    # Color map for specific values
+    color_map = {
+        0: 'purple',   # Definitely not here
+        -1: 'black',   # Wall
+    }
+    
+    d = len(rat_prob_map)
+    img = np.zeros((d, d, 3))
+    
+    # Get min/max for normalization
+    prob_values = [rat_prob_map[i][j] for i in range(d) for j in range(d) if 0 < rat_prob_map[i][j] <= 1]
+    
+    if prob_values:
+        min_val, max_val = min(prob_values), max(prob_values)
+    else:
+        min_val, max_val = 0, 1  # Default range
+
+    cmap = plt.cm.coolwarm  # Use a perceptible color map
+
+    for i in range(d):
+        for j in range(d):
+            if rat_prob_map[i][j] in color_map:
+                img[i][j] = mcolors.to_rgb(color_map[rat_prob_map[i][j]])
+            elif 0 < rat_prob_map[i][j] <= 1:  # Ensure value is within the valid range
+                val = rat_prob_map[i][j]
+
+                # Apply square root scaling to enhance small differences
+                normalized_val = (val - min_val) / (max_val - min_val) if max_val > min_val else val
+                adjusted_val = np.sqrt(normalized_val)  # Enhances small differences
+
+                img[i, j] = cmap(adjusted_val)[:3]  # Get RGB color from colormap
+    
+    # Highlight path if provided
+    if path is not None:
+        for r, c in path:
+            img[r, c] = mcolors.to_rgb('orange')
+
+    # Show image
+    plt.imshow(img, interpolation='nearest')  # Use 'nearest' to avoid blurring small differences
+    plt.xticks([])
+    plt.yticks([])
+
+    if title:
+        plt.title(title)
+
+    plt.show()
+
 
 def visualize_possible_cells(ship, cells, title = ""): 
 
@@ -276,12 +398,20 @@ def ping(info, alpha=0.2):
     bot_r, bot_c = info['bot']
     rat_r, rat_c = info['rat']
 
+    print('bot_r, bot_c:', bot_r, bot_c)
+    print('rat_r, rat_c:', rat_r, rat_c)
+
     def heuristic():
         return abs(bot_r - rat_r) + abs(bot_c - rat_c)
+    
+    prob_ping = math.e ** (-alpha * (heuristic() - 1))
+    
+    if random.uniform(0,1) > prob_ping:
+        return True
+    else:
+        return False
 
-    math.e ** (-alpha * (heuristic() - 1))
-
-def bot1(info, visualize):
+def bot1(info, visualize, alpha):
     bot_r, bot_c = info['bot']
     ship = info['empty_ship']
     curr_r, curr_c = bot_r, bot_c
@@ -289,6 +419,7 @@ def bot1(info, visualize):
     num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
     possible_cells = set_possible_cells = set(blocked_neighbors[num_curr_blocked_ns])
     prev_dirc = (1,1)
+    d = len(info['ship'])
      
     i = 1
 
@@ -390,40 +521,167 @@ def bot1(info, visualize):
 
     info['ship'][bot_r][bot_c] = 0
     info['ship'][curr_r][curr_c] = 2
+    info['bot'] = (curr_r, curr_c)
 
     visualize_ship(info['ship'], None)
 
-    curr_ship = info['ship']
+    rat_prob_map = copy.deepcopy(info['empty_ship'])
 
-    n = 100
+    visualize_ship(rat_prob_map, None)
 
-    prob_ping = copy.deepcopy(info['empty_ship'])
+    num_open_cells = 0
+    for i in range(len(rat_prob_map)):
+        for j in range(len(rat_prob_map)):
+            if rat_prob_map[i][j] == 0: # open
+                num_open_cells += 1
+            else:
+                rat_prob_map[i][j] = -1
+    
+    print("num open cells", num_open_cells)
 
-    for r in range(len(prob_ping)):
-        for c in range(len(prob_ping[r])):
-            if prob_ping[r][c] == 0:
-                prob_ping[r][c] = (0,0)
+    uniform_prob_i = 1 / num_open_cells
+
+    print("initial prob everywhere", uniform_prob_i)
+
+    open_cells = set()
+
+    for i in range(len(rat_prob_map)):
+        for j in range(len(rat_prob_map)):
+            if rat_prob_map[i][j] == 0: 
+                rat_prob_map[i][j] = uniform_prob_i
+                open_cells.add((i,j))
+
+    visualize_rat_prob_map(rat_prob_map, None, "Initial Rat Prob Map")
+
+    iteration = 1
+
+    path = []
+
+    while True:
+
+        print("info[bot]", info['bot'])
+
+        # check if reached rat
+        if info['bot'] == info['rat']:
+            print("Found Rat", info['bot'], info['rat'])
+            break
+        else:
+            bot_r, bot_c = info['bot']
+            rat_prob_map[bot_r][bot_c] = 0
+        
+        visualize_rat_prob_map(rat_prob_map, None, f"Rat Prob Map Pre{iteration}")
+
+        # for i in range(len(rat_prob_map)):
+        #     for j in range(len(rat_prob_map)):
+        #         print(f"{rat_prob_map[i][j]:.5f}", end=" ")
+        #     print()
+        
+        # sense
+
+        # POTENTIAL APPROACH
+        # find best closest unvisited cell, move there, recallibrate
+
+        ping_result = ping(info, alpha)
+        print("ping:", ping_result)
+
+        summed_prob = 0
+        if ping_result: # detected ping
+            for (r,c) in open_cells:
+                rat_prob_map[r][c] *= math.e * (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1))
+                summed_prob += rat_prob_map[r][c]
+            for (r,c) in open_cells:
+                rat_prob_map[r][c] /= summed_prob
+        else: # no ping
+            for (r,c) in open_cells:
+                rat_prob_map[r][c] *= (1 - math.e * (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1)))
+                summed_prob += rat_prob_map[r][c]
+            for (r,c) in open_cells:
+                rat_prob_map[r][c] /= summed_prob
+        
+        visualize_rat_prob_map(rat_prob_map, None, f"Rat Prob Map Post calculation {iteration}")
+
+        # for i in range(len(rat_prob_map)):
+        #     for j in range(len(rat_prob_map)):
+        #         print(f"{rat_prob_map[i][j]:.5f}", end=" ")
+        #     print()
+
+        # best_direction = {
+        #     (0,1) : [0,0],
+        #     (0,-1) : [0,0], 
+        #     (1,0) : [0,0],
+        #     (-1,0) : [0,0]
+        # }
+
+        # for oc in open_cells:
+        #     ocr, occ = oc
+        #     if ocr < bot_r: # this cell above bot_r
+        #         best_direction[(0,-1)] = [best_direction[(0,-1)][0] + rat_prob_map[ocr][occ], best_direction[(0,-1)][1]+1]
+        #     if ocr > bot_r:
+        #         best_direction[(0,1)] = [best_direction[(0,1)][0] + rat_prob_map[ocr][occ], best_direction[(0,1)][1]+1]
+        #     if occ < bot_c:
+        #         best_direction[(-1,0)] = [best_direction[(-1,0)][0] + rat_prob_map[ocr][occ], best_direction[(-1,0)][1]+1]
+        #     if occ > bot_c:
+        #         best_direction[(1,0)] = [best_direction[(1,0)][0] + rat_prob_map[ocr][occ], best_direction[(1,0)][1]+1]
+        
+        # for bd in best_direction:
+        #     best_direction[bd] = best_direction[bd][0] / best_direction[bd][1]
+        #     if rat_prob_map[bot_r + bd[0]][bot_c+bd[1]] == 0:
+        #         best_direction[bd] -= 1
+        
+        # bd_items = list(best_direction.items())
+        # bd_items.sort(key = lambda x: x[1])
+
+        # direction_to_move = (-1,-1)
+        
+        # while True:
+        #     direction_to_move = bd_items.pop()[0]
+        #     if info['empty_ship'][bot_r + direction_to_move[0]][bot_c + direction_to_move[1]] == 0:
+        #         break
+
+        # new_r, new_c = bot_r + direction_to_move[0], bot_c + direction_to_move[1] - comment out below new_r, new_c assignment to test this
+
+        highest_rat_prob = 0
+        highest_rat_prob_cell = (-1,-1)
+
+        for i in range(len(rat_prob_map)):
+            for j in range(len(rat_prob_map)):
+                if rat_prob_map[i][j] > highest_rat_prob:
+                    highest_rat_prob = rat_prob_map[i][j]
+                    highest_rat_prob_cell = (i,j)
+        
+        print("best cell", highest_rat_prob_cell)
+        
+        path = astar(info['bot'], info['empty_ship'], highest_rat_prob_cell)
+
+
+        visualize_ship(info['ship'], path, title = "planned path")
+            
+        print('path', path)
+        new_r, new_c = path[1]
+
+        print("new_r, new_c", new_r, new_c)
+
+        print("bot now at", new_r, new_c)
+
+        info['bot'] = new_r, new_c
+
+        iteration += 1
+
+
+
+    
     
 
 
 
-    # [(up):(0,1), (down):(0,0), (left):()]
-    i = 0
-    while True:
-        ping(info)
-        print("iteration", i)
-        cell_prop = {}
-        for dr,dc in directions:
-            tr,tc = curr_r+dr, curr_c+dc
-            if prob_ping[tr][tc] != 1:
-                cell_prop[(tr,tc)] = (prob_ping[tr][tc])
-        sorted_cell_prop = sorted(cell_prop.items(), key=lambda x:(x[1][0],x[1][1]))
-        print(sorted_cell_prop)
-        curr_ship[curr_r][curr_c] = 0
-        curr_r,curr_c = sorted_cell_prop[0][0]
-        curr_ship[curr_r][curr_c] = 2
-        visualize_ship(curr_ship, None)
-        i+=1
+    
+
+    
+
+
+
+
+    
 
 
 # Main for testing
@@ -444,14 +702,8 @@ def main():
     #     print()
     visualize_neighbor_map(neighbor_map)
     # print("\n\n",temp_sum)
-    bot1(info, visualize=False)
+    bot1(info, visualize=False, alpha = 0.1)
 
-    num_closed = 0
-    for r in range(30):
-        for c in range(30):
-            if ship[r][c] == 1:
-                num_closed += 1
-    print(num_closed)
 
 # Run Main
 if __name__ == "__main__":
@@ -459,71 +711,3 @@ if __name__ == "__main__":
 
 
 
-
-# A* search algorithm implementation that takes in:
-# start - tuple of (start row, start col) of where to start search
-# map - contains information of map in current state - 2D array
-# button - tuple of (button row, button col) of final destination
-def astar(start, map, button):
-    
-    # heuristic used for A* - Manhattan distance between 2 points (x_1, y_1) and (x_2, y_2)
-    # returns sum of absolute value in difference of x and absolute value in difference of y
-    # takes in tuple cell1 (row, col) and returns Manhattan distance to goal - button
-    def heuristic(cell1):
-        return abs(cell1[0] - button[0]) + abs(cell1[1]-button[1])
-    
-    # initializing useful variables for A*
-    d = len(map)
-    fringe = []
-
-    # more initialization of variables
-    heapq.heappush(fringe, (heuristic(start),start))
-    # items on the fringe (heap) will look like (23, (2,5))
-    total_costs = dict()
-    total_costs[start] = 0
-    prev = dict()
-    prev[start] = None
-
-    # A* loop
-    while fringe:
-        
-        # pop the cell with the lowest estimated cost
-        curr = heapq.heappop(fringe)
-
-        # curr = (heuristic((x,y)), (x,y))
-        # curr pos = curr[1]
-        # heuristic evaluated at curr pos = curr[0]
-
-        # if we have reached the goal, reconstruct the path
-        if curr[1] == button:
-            
-            curr_p = curr[1]
-            path = deque()
-            while curr_p != None:
-                path.appendleft(curr_p)
-                curr_p = prev[curr_p]
-            return list(path)
-        
-        # get current cell's row and column
-        r,c = curr[1]
-
-        # explore neighboring cells
-        for dr, dc in directions:
-            nr, nc = r + dr, c + dc # calculating neighbor's coordinates
-            child = (nr,nc) # child is tuple that represents neighbor's coordinates
-
-            # check if neighbor is in bounds, not a wall, and not a fire
-            if 0 <= nr < d and 0 <= nc < d and (map[nr][nc] != 1 and map[nr][nc] != -1):
-                cost = total_costs[curr[1]] + 1
-
-                # compute estimated total cost as sum of actual cost and heurisitc
-                est_total_cost = cost + heuristic(child)
-
-                # if this path to child is better (or if it's not visited yet), update
-                if child not in total_costs:
-                    prev[child] = curr[1]
-                    total_costs[child] = cost
-                    heapq.heappush(fringe, (est_total_cost, child))
-
-    # if no path was found, return an empty list
-    return []        
