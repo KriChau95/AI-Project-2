@@ -148,7 +148,7 @@ def astar(start, map, button):
     # returns sum of absolute value in difference of x and absolute value in difference of y
     # takes in tuple cell1 (row, col) and returns Manhattan distance to goal - button
     def heuristic(cell1):
-        return abs(cell1[0] - button[0]) + abs(cell1[1]-button[1])
+        return abs(cell1[0] - button[0]) + abs(cell1[1]-button[1]) 
     
     # initializing useful variables for A*
     d = len(map)
