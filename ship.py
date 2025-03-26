@@ -127,11 +127,11 @@ def bot1_2(info, visualize, alpha):
         'title': "Initial Rat Prob Map"
     })
 
-    visualize_rat_prob_map(rat_prob_map, None, "Initial Rat Prob Map")
+    # visualize_rat_prob_map(rat_prob_map, None, "Initial Rat Prob Map")
 
     iteration = 1
     path = []
-    visualize_rat_prob_map(rat_prob_map, None, f"Rat Prob Map Pre{iteration}")
+    # visualize_rat_prob_map(rat_prob_map, None, f"Rat Prob Map Pre{iteration}")
 
     def update_rat_prob(rat_prob_map):
         nonlocal iteration  # Use nonlocal to access iteration
@@ -164,7 +164,7 @@ def bot1_2(info, visualize, alpha):
             'rat_prob_map': copy.deepcopy(rat_prob_map),
             'path': copy.deepcopy(path),
             'bot_pos': info['bot'],  # Store bot position
-            'title': f"Iteration {iteration}"
+            'title': f"bot1 for alpha={alpha}, Iteration {iteration}"
         })
 
     update_rat_prob(rat_prob_map)
@@ -198,6 +198,9 @@ def bot1_2(info, visualize, alpha):
 
             update_rat_prob(rat_prob_map)
             iteration += 1
+            if found:
+                break
+        
 
     # --- Modified: Animation with explicit figure management ---
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
@@ -219,9 +222,12 @@ def bot1_2(info, visualize, alpha):
         ax2.set_yticks([])
         ax2.set_title(frame['title'])
 
+        
+
     ani = animation.FuncAnimation(fig, animate, frames=len(frames), interval=500, repeat=False)
-    ani.save('proj2-bot1.mp4', writer='ffmpeg', fps=2)  
+    ani.save(f'proj2-bot1-a={alpha}.mp4', writer='ffmpeg', fps=2)  
     plt.show()
+    plt.ion()
 
 def visualize_ship(ship, path, title="", show=True): 
     color_map = {
@@ -441,8 +447,9 @@ def main():
     empty_ship = info['empty_ship']
     neighbor_map, blocked_neighbors = create_neighbor_map(empty_ship)
     
-    visualize_ship(ship, None)
-    bot1_2(info, visualize=True, alpha=0.5)
+    # visualize_ship(ship, None)
+    
+    bot1_2(info, visualize=True, alpha=0)
 
 if __name__ == "__main__":
     main()
