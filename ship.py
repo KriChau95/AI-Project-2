@@ -14,16 +14,21 @@ import math
 # Set backend to TkAgg at the start to avoid macosx issues
 plt.switch_backend('TkAgg')
 
+# setting up global variables that are used for adjacency in searches
 global directions
 directions = [(0,1), (0,-1), (1,0), (-1,0)] # array to store adjacent directions needed during various traversal
+global diagonal_directions
 diagonal_directions = [(0,1), (0,-1), (1,0), (-1,0), (-1,1), (-1,-1), (1,1), (1,-1)]
-random.seed(30)
 
+# the ping function takes in info - the current state of the ship, and alpha which dictates ping probability
+# based on the current bot position and the current rat position, it simulates and returns a boolean represeting whether or not a ping occurred
 def ping(info, alpha):
+
     bot_r, bot_c = info['bot']
     rat_r, rat_c = info['rat']
-    print('bot_r, bot_c:', bot_r, bot_c)
-    print('rat_r, rat_c:', rat_r, rat_c)
+    
+    # print('bot_r, bot_c:', bot_r, bot_c)
+    # print('rat_r, rat_c:', rat_r, rat_c)
 
     def heuristic():
         return abs(bot_r - rat_r) + abs(bot_c - rat_c)
@@ -35,17 +40,25 @@ def ping(info, alpha):
     else:
         return False, prob_ping
 
-def bot1_2(info, visualize, alpha):
+# Bot 1 Implementation here
+def bot1(info, visualize, alpha):
+
+    # Get initial information about bot and ship
     bot_r, bot_c = info['bot']
     ship = info['empty_ship']
+    d = len(info['ship'])
+
+    # set up variables to help determine bot position
     curr_r, curr_c = bot_r, bot_c
     neighbor_map, blocked_neighbors = create_neighbor_map(ship)
     num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
     possible_cells = set_possible_cells = set(blocked_neighbors[num_curr_blocked_ns])
     prev_dirc = (1,1)
-    d = len(info['ship'])
-     
-    i = 1
+    
+    # initialize result variables that provide insight to rat-finding process
+    num_movements = 0
+    num_blocked_cell_detects = 0
+    num_space_rat_pings = 0
 
     ## Phase 1: Localization
     while len(possible_cells) > 1:
@@ -84,15 +97,17 @@ def bot1_2(info, visualize, alpha):
                 new_cell = (elem_r + best_dir[0], elem_c + best_dir[1])
                 new_set_possible_cells.add(new_cell)
             set_possible_cells = copy.deepcopy(new_set_possible_cells)
+            num_movements += 1                                              #### ask in office hours
         else:
             set_possible_cells = direction_c[best_dir]
         
         prev_dirc = best_dir
-        i += 1
+        
+        num_blocked_cell_detects += 1
 
     ## Phase 2: Rat finding
     curr_r, curr_c = set_possible_cells.pop()
-    print("we start phase 2 here", curr_r,curr_c)
+    # print("we start phase 2 here", curr_r,curr_c)
     info['ship'][bot_r][bot_c] = 0
     info['ship'][curr_r][curr_c] = 2
     info['bot'] = (curr_r, curr_c)
@@ -105,10 +120,10 @@ def bot1_2(info, visualize, alpha):
                 num_open_cells += 1
             else:
                 rat_prob_map[i][j] = -1    
-    print("num open cells", num_open_cells)
+    # print("num open cells", num_open_cells)
 
     uniform_prob_i = 1 / num_open_cells
-    print("initial prob everywhere", uniform_prob_i)
+    # print("initial prob everywhere", uniform_prob_i)
 
     open_cells = set()
     for i in range(len(rat_prob_map)):
@@ -118,14 +133,15 @@ def bot1_2(info, visualize, alpha):
                 open_cells.add((i,j))
 
     # --- Added: Frame storage with bot position ---
-    frames = []  # List to store frames
-    frames.append({
-        'ship': copy.deepcopy(info['ship']),
-        'rat_prob_map': copy.deepcopy(rat_prob_map),
-        'path': None,
-        'bot_pos': info['bot'],  # Store bot position
-        'title': "Initial Rat Prob Map"
-    })
+    if visualize:
+        frames = []  # List to store frames
+        frames.append({
+            'ship': copy.deepcopy(info['ship']),
+            'rat_prob_map': copy.deepcopy(rat_prob_map),
+            'path': None,
+            'bot_pos': info['bot'],  # Store bot position
+            'title': "Initial Rat Prob Map"
+        })
 
     # visualize_rat_prob_map(rat_prob_map, None, "Initial Rat Prob Map")
 
@@ -135,20 +151,24 @@ def bot1_2(info, visualize, alpha):
 
     def update_rat_prob(rat_prob_map):
         nonlocal iteration  # Use nonlocal to access iteration
-        print()
-        print("updating rat prob map")
+        # print()
+        # print("updating rat prob map")
         ping_result, prob_ping = ping(info, alpha)
-        print("ping:", ping_result, prob_ping)
+
+        nonlocal num_space_rat_pings 
+        num_space_rat_pings += 1
+
+        # print("ping:", ping_result, prob_ping)
         summed_prob = 0
         if ping_result: # detected ping
-            print("got ping, updating rat prog")
-            print("bot at", info['bot'])
-            print("rat at", info['rat'])
+            # print("got ping, updating rat prog")
+            # print("bot at", info['bot'])
+            # print("rat at", info['rat'])
             for (r,c) in open_cells:
                 prob_rat = math.e ** (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1))
                 rat_prob_map[r][c] *= prob_rat
                 summed_prob += rat_prob_map[r][c]
-            print("summed prob", summed_prob)
+            #print("summed prob", summed_prob)
             for (r,c) in open_cells:
                 rat_prob_map[r][c] /= summed_prob
         else: # no ping
@@ -158,20 +178,22 @@ def bot1_2(info, visualize, alpha):
             for (r,c) in open_cells:
                 rat_prob_map[r][c] /= summed_prob
 
+
         # --- Added: Save frame after update with bot position ---
-        frames.append({
-            'ship': copy.deepcopy(info['ship']),
-            'rat_prob_map': copy.deepcopy(rat_prob_map),
-            'path': copy.deepcopy(path),
-            'bot_pos': info['bot'],  # Store bot position
-            'title': f"bot1 for alpha={alpha}, Iteration {iteration}"
-        })
+        if visualize:
+            frames.append({
+                'ship': copy.deepcopy(info['ship']),
+                'rat_prob_map': copy.deepcopy(rat_prob_map),
+                'path': copy.deepcopy(path),
+                'bot_pos': info['bot'],  # Store bot position
+                'title': f"bot1 for alpha={alpha}, Iteration {iteration}"
+            })
 
     update_rat_prob(rat_prob_map)
     found = False
 
     while not found:
-        print("info[bot]", info['bot'])        
+        #print("info[bot]", info['bot'])        
         highest_rat_prob = 0
         highest_rat_prob_cell = (-1,-1)
         for i in range(len(rat_prob_map)):
@@ -180,17 +202,18 @@ def bot1_2(info, visualize, alpha):
                     highest_rat_prob = rat_prob_map[i][j]
                     highest_rat_prob_cell = (i,j)
 
-        print("best cell", highest_rat_prob_cell)
+        #print("best cell", highest_rat_prob_cell)
         path = astar(info['bot'], info['empty_ship'], highest_rat_prob_cell)
         for new_r,new_c in path:
-            print('path', path)
-            print("new_r, new_c", new_r, new_c)
-            print("bot now at", new_r, new_c)
+            # print('path', path)
+            # print("new_r, new_c", new_r, new_c)
+            # print("bot now at", new_r, new_c)
             info['bot'] = new_r, new_c
+            num_movements += 1
 
             # check if reached rat
             if info['bot'] == info['rat']:
-                print("Found Rat", info['bot'], info['rat'])
+                #print("Found Rat", info['bot'], info['rat'])
                 found = True
             else:
                 bot_r, bot_c = info['bot']
@@ -200,10 +223,10 @@ def bot1_2(info, visualize, alpha):
             iteration += 1
             if found:
                 break
-        
 
     # --- Modified: Animation with explicit figure management ---
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    if visualize:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
     def animate(frame_idx):
         ax1.clear()
@@ -222,12 +245,14 @@ def bot1_2(info, visualize, alpha):
         ax2.set_yticks([])
         ax2.set_title(frame['title'])
 
-        
+    if visualize:
+        ani = animation.FuncAnimation(fig, animate, frames=len(frames), interval=500, repeat=False)
+        ani.save(f'proj2-bot1-a={alpha}.mp4', writer='ffmpeg', fps=2)  
+        plt.show()
+        plt.ion()
+    
+    return num_blocked_cell_detects, num_space_rat_pings, num_movements
 
-    ani = animation.FuncAnimation(fig, animate, frames=len(frames), interval=500, repeat=False)
-    ani.save(f'proj2-bot1-a={alpha}.mp4', writer='ffmpeg', fps=2)  
-    plt.show()
-    plt.ion()
 
 def visualize_ship(ship, path, title="", show=True): 
     color_map = {
@@ -369,7 +394,7 @@ def init_ship(dimension):
             if ship[r][c] == 0:
                 open_cells.add((r,c))
     
-    print("num open cells", len(open_cells))
+    # print("num open cells", len(open_cells))
 
     empty_ship = copy.deepcopy(ship)
     bot_r,bot_c = random.choice(list(open_cells))
@@ -446,10 +471,17 @@ def main():
     ship = info['ship']
     empty_ship = info['empty_ship']
     neighbor_map, blocked_neighbors = create_neighbor_map(empty_ship)
+    num_blocked_cell_detects, num_space_rat_pings, num_movements = bot1(info, visualize=True, alpha=0.05)
+    print("num_blocked_cell_detects", num_blocked_cell_detects),
+    print("num_space_rat_pings", num_space_rat_pings)
+    print("num_movements", num_movements)
+
+    num_blocked_cell_detects, num_space_rat_pings, num_movements = bot1(info, visualize=True, alpha=0.10)
+    print("num_blocked_cell_detects", num_blocked_cell_detects),
+    print("num_space_rat_pings", num_space_rat_pings)
+    print("num_movements", num_movements)
+
     
-    # visualize_ship(ship, None)
-    
-    bot1_2(info, visualize=True, alpha=0)
 
 if __name__ == "__main__":
     main()
