@@ -387,22 +387,15 @@ def bot2(info, visualize, alpha):
         highest_rat_prob = 0
         highest_rat_prob_cell = (-1, -1)
 
-        # Find the cell with highest probability within 15 Manhattan distance
+
         for i in range(len(rat_prob_map)):
             for j in range(len(rat_prob_map)):
-                if rat_prob_map[i][j] > 0:  # Only consider cells with positive probability
+                if rat_prob_map[i][j] > 0:  
                     manhattan_dist = abs(i - bot_r) + abs(j - bot_c)
-                    if manhattan_dist <= 15 and rat_prob_map[i][j] > highest_rat_prob:
+                    if manhattan_dist <= 10 and rat_prob_map[i][j] > highest_rat_prob:
                         highest_rat_prob = rat_prob_map[i][j]
                         highest_rat_prob_cell = (i, j)
 
-        # If no valid cell found within 15 units, fall back to the global highest (optional)
-        if highest_rat_prob_cell == (-1, -1):
-            for i in range(len(rat_prob_map)):
-                for j in range(len(rat_prob_map)):
-                    if rat_prob_map[i][j] > highest_rat_prob:
-                        highest_rat_prob = rat_prob_map[i][j]
-                        highest_rat_prob_cell = (i, j)
 
         path = astar_with_heuristic(info['bot'], rat_prob_map, info['empty_ship'], highest_rat_prob_cell)
         for new_r, new_c in path:
@@ -669,7 +662,7 @@ def astar_with_heuristic(start, rat_prob_map, map, button):
     prev = dict()
     prev[start] = None
 
-    PURPLE_CELL_PENALTY = 10  
+    PURPLE_CELL_PENALTY = 3
 
     while fringe:
         curr = heapq.heappop(fringe)

@@ -54,6 +54,7 @@ ax1.legend()
 ax1.grid(True)
 ax1.set_ylim(y_min, y_max_padded)  # Set y-axis from 0 to padded max
 
+
 # Plot for Bot 2
 ax2.plot(alpha_2, blocked_2, marker='o', linestyle='-', label='Avg Blocked Cell Detects')
 ax2.plot(alpha_2, pings_2, marker='s', linestyle='-', label='Avg Space Rat Pings')
