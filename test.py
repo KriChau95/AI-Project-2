@@ -17,7 +17,7 @@ bot_1_moving_rat_results_file = "bot_1_moving_rat_results.txt"
 bot_2_moving_rat_results_file = "bot_2_moving_rat_results.txt"
 
 # Specify number of ships to create
-num_ships = 10
+num_ships = 20
 num_iterations = 10
 
 # Initialize array to store num_ships ships

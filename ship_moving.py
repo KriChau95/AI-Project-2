@@ -2,11 +2,7 @@
 
 # Importing libraries for randomness, data structures, and data visualization
 import random
-import numpy as np
 import heapq
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors 
-import matplotlib.animation as animation
 from collections import deque, defaultdict
 import copy
 import math
@@ -70,33 +66,42 @@ def create_neighbor_map(ship):
     return neighbor_map, blocked_cells
 
 
-# New helper function to compute the transition matrix for rat movement
+# New helper function to compute the transition matrix (dictionary of dictionaries) to account for probabilities of rat movement
 def compute_transition_matrix(ship):
     
     d = len(ship)
     
+    # store all open cell coordinates in a list
     open_cells = []
     for r in range(d):
         for c in range(d):
             if ship[r][c] == 0:
                 open_cells.append((r,c))
     
+    # create a dictionary of dictionaries to store the probability that the rat moves from one state to the next
     T = defaultdict(lambda: defaultdict(float))
 
+    # iterate through all open cells
     for r, c in open_cells:
         
+        # for each open cell, store all of its adjacent open neighbors to a neighbors list
         neighbors = []
         for dr, dc in directions:
             if 0 <= r + dr < d and 0 <= c + dc < d and ship [r + dr][c + dc] == 0:
                 neighbors.append((r + dr, c + dc))
 
+        # calculate and store the probability that a rat can move from this open cell to each specific neighbor cell as a value
+        # dictionary - key = cell, value = dictionary of neighboring cells s.t. key = neighboring cel, value = probability of moving to that neighboring cell
         prob = 1 / len(neighbors)
         
         for nr, nc in neighbors:
             T[(r, c)][(nr, nc)] = prob
     
+    # return the information stored in T as well as the open cells
     return T, open_cells
 
+# Baseline Bot 1 that has overall algorithmic approach similar to Baseline bot 1 in stationary case
+# Main difference is that probabilistic knowledge base is modified to appropriately account for moving rat
 def bot1_2(info, visualize, alpha):
     
     # Get initial bot position and ship configuration
@@ -123,6 +128,7 @@ def bot1_2(info, visualize, alpha):
 
     # ----------------- PHASE 1: Localization -----------------
     while len(set_possible_cells) > 1:
+       
         # Sense blocked neighbors
         num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
         possible_cells = {cell for cell in set_possible_cells if neighbor_map[cell[0]][cell[1]] == num_curr_blocked_ns}

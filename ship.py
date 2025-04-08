@@ -511,7 +511,88 @@ def bot2(info, visualize, alpha):
     info['ship'][curr_r][curr_c] = 2
     info['bot'] = (curr_r, curr_c)
     bot_r, bot_c = curr_r, curr_c  # Sync bot_r, bot_c with new position
+    
+    def dfs_explore(info, start, ship):
+        stack = [(start, [start])]  # (current position, path so far)
+        visited = set([start])
+        num_movements = 0
+        num_space_rat_pings = 0
+        timesteps = 0
+        d = len(ship)
+        directions = [(0, 1), (0, -1), (-1, 0), (1, 0)]  # right, left, up, down
 
+        while stack:
+            (r, c), path = stack[-1]  # current position
+            
+            # Ping at current position if not yet pinged
+            if (r, c) not in visited:
+                # Move bot to current position (if not already there)
+                if info['bot'] != (r, c):
+                    info['ship'][info['bot'][0]][info['bot'][1]] = 0  # Clear old position
+                    info['bot'] = (r, c)
+                    info['ship'][r][c] = 2  # Update new position
+                    num_movements += 1
+                    timesteps += 1
+                    if visualize: visualize_side_by_side(info['empty_ship'], info['ship'], path, info['bot'], f"Timestep {timesteps}")
+                
+                # Ping to check if rat is here
+                ping_result = ping(info, 0)  # alpha = 0
+                num_space_rat_pings += 1
+                timesteps += 1
+                visited.add((r, c))  # Mark as visited after pinging
+                if visualize: visualize_side_by_side(info['empty_ship'], info['ship'], path, info['bot'], f"Timestep {timesteps}")
+
+                if ping_result == "Found":
+                    return num_movements, num_space_rat_pings, timesteps, path
+
+            # Find unvisited neighbors
+            unvisited_neighbors = []
+            for dr, dc in directions:
+                nr, nc = r + dr, c + dc
+                if (0 <= nr < d and 0 <= nc < d and 
+                    ship[nr][nc] == 0 and (nr, nc) not in visited):
+                    unvisited_neighbors.append((nr, nc))
+
+            if unvisited_neighbors:
+                # Choose the first unvisited neighbor
+                next_r, next_c = unvisited_neighbors[0]
+                new_path = path + [(next_r, next_c)]
+                stack.append(((next_r, next_c), new_path))
+                
+                # Move to the neighbor
+                info['ship'][info['bot'][0]][info['bot'][1]] = 0  # Clear old position
+                info['bot'] = (next_r, next_c)
+                info['ship'][next_r][next_c] = 2  # Update new position
+                num_movements += 1
+                timesteps += 1
+                if visualize: visualize_side_by_side(info['empty_ship'], info['ship'], new_path, info['bot'], f"Timestep {timesteps}")
+            else:
+                # No unvisited neighbors, backtrack
+                stack.pop()  # Remove current position from stack
+                if stack:
+                    # Move back to the previous position in the stack
+                    prev_r, prev_c = stack[-1][0]
+                    info['ship'][info['bot'][0]][info['bot'][1]] = 0  # Clear current position
+                    info['bot'] = (prev_r, prev_c)
+                    info['ship'][prev_r][prev_c] = 2  # Update to previous position
+                    num_movements += 1
+                    timesteps += 1
+                    if visualize: visualize_side_by_side(info['empty_ship'], info['ship'], stack[-1][1], info['bot'], f"Timestep {timesteps}")
+
+        # If we exit the loop without finding the rat, return current counts
+        return num_movements, num_space_rat_pings, timesteps, path
+
+    # Integration into the main bot2 function
+    if alpha == 0:
+        # Special case: Use DFS exploration when alpha = 0
+        dfs_moves, dfs_pings, dfs_timesteps, path = dfs_explore(info, (curr_r, curr_c), info['ship'])
+        num_movements += dfs_moves
+        num_space_rat_pings += dfs_pings
+        timesteps += dfs_timesteps
+        if visualize and path:
+            visualize_ship(info['ship'], path, title="DFS Path when alpha = 0")
+        return num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps
+    
     # Initialize all the probabilities for open cells to be uniformly the same number
     # let's say we have x open cells. At the beginning, P(rat at r,c) = 1/x for all open cells (r,c)
     rat_prob_map = copy.deepcopy(info['empty_ship'])
@@ -717,7 +798,7 @@ def astar_with_heuristic(start, rat_prob_map, map, end):
 
 # Main for testing
 def main():
-    random.seed(20)
+    random.seed(21)
 
     og_info = init_ship(30)
 
@@ -728,7 +809,7 @@ def main():
 
     # visualize_ship(og_info['ship'], None)
     
-    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot1(info_1, visualize=False, alpha=0.02)
+    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot1(info_1, visualize=False, alpha=0.00)
     print("BOT 1 PEFORMANCE:")
     print("num_blocked_cell_detects", num_blocked_cell_detects),
     print("num_space_rat_pings", num_space_rat_pings)
@@ -737,7 +818,7 @@ def main():
 
     info_2 = copy.deepcopy(og_info)
 
-    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot2(info_2, visualize=False, alpha=0.02)
+    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot2(info_2, visualize=True, alpha=0.00)
     print("BOT 2 PEFORMANCE:")
     print("num_blocked_cell_detects", num_blocked_cell_detects),
     print("num_space_rat_pings", num_space_rat_pings)

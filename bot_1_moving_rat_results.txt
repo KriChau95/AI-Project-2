@@ -1,0 +1,1 @@
+Alpha, Avg Blocked Cell Detects, Avg Space Rat Pings, Avg Movements, Avg Timesteps
