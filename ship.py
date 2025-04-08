@@ -566,15 +566,9 @@ def bot2(info, visualize, alpha):
 
 
     found = False
-    def calculate_entropy(rat_prob_map):
-        entropy = 0.0
-        for row in rat_prob_map:
-            for prob in row:
-                if prob > 0:  
-                    entropy -= prob * math.log2(prob)
-        return entropy
 
     while not found:
+
         if visualize: visualize_rat_prob_map(rat_prob_map)
         
         # determine most likely position of rat based on probability knowledge base
@@ -595,7 +589,7 @@ def bot2(info, visualize, alpha):
 
         # move along planned path until either path is finished or max number of steps is reached
         for new_r, new_c in path[:steps_towards_before_recalc]:
-            # print(f"entropy = {calculate_entropy(rat_prob_map)}")
+            
             # Move
             info['ship'][bot_r][bot_c] = 0  # Clear old position
             info['bot'] = (new_r, new_c)
@@ -734,16 +728,16 @@ def main():
 
     # visualize_ship(og_info['ship'], None)
     
-    # num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot1(info_1, visualize=False, alpha=0.02)
-    # print("BOT 1 PEFORMANCE:")
-    # print("num_blocked_cell_detects", num_blocked_cell_detects),
-    # print("num_space_rat_pings", num_space_rat_pings)
-    # print("num_movements", num_movements)
-    # print("time_steps", timesteps)
+    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot1(info_1, visualize=False, alpha=0.02)
+    print("BOT 1 PEFORMANCE:")
+    print("num_blocked_cell_detects", num_blocked_cell_detects),
+    print("num_space_rat_pings", num_space_rat_pings)
+    print("num_movements", num_movements)
+    print("time_steps", timesteps)
 
     info_2 = copy.deepcopy(og_info)
 
-    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot2(info_2, visualize=False, alpha=0.1)
+    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot2(info_2, visualize=False, alpha=0.02)
     print("BOT 2 PEFORMANCE:")
     print("num_blocked_cell_detects", num_blocked_cell_detects),
     print("num_space_rat_pings", num_space_rat_pings)
