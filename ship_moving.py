@@ -72,17 +72,33 @@ def create_neighbor_map(ship):
 
 # New helper function to compute the transition matrix for rat movement
 def compute_transition_matrix(ship):
+    
     d = len(ship)
-    open_cells = [(r, c) for r in range(d) for c in range(d) if ship[r][c] == 0]
+    
+    open_cells = []
+    for r in range(d):
+        for c in range(d):
+            if ship[r][c] == 0:
+                open_cells.append((r,c))
+    
     T = defaultdict(lambda: defaultdict(float))
+
     for r, c in open_cells:
-        neighbors = [(r + dr, c + dc) for dr, dc in directions if 0 <= r + dr < d and 0 <= c + dc < d and ship[r + dr][c + dc] == 0]
+        
+        neighbors = []
+        for dr, dc in directions:
+            if 0 <= r + dr < d and 0 <= c + dc < d and ship [r + dr][c + dc] == 0:
+                neighbors.append((r + dr, c + dc))
+
         prob = 1 / len(neighbors)
+        
         for nr, nc in neighbors:
             T[(r, c)][(nr, nc)] = prob
+    
     return T, open_cells
 
 def bot1_2(info, visualize, alpha):
+    
     # Get initial bot position and ship configuration
     bot_r, bot_c = info['bot']
     rat_r, rat_c = info['rat']
@@ -161,7 +177,6 @@ def bot1_2(info, visualize, alpha):
     print("phase 2")
 
     # ----------------- PHASE 2: Rat Finding -----------------
-
     
     curr_r, curr_c = set_possible_cells.pop()
     info['ship'][bot_r][bot_c] = 0
@@ -211,6 +226,13 @@ def bot1_2(info, visualize, alpha):
             summed_prob += rat_prob_map[r][c]
     for r, c in open_cells:
         rat_prob_map[r][c] /= summed_prob
+
+    # Update probabilities based on rat movement
+    new_rat_prob_map = [[-1 if ship[r][c] == 1 else 0 for c in range(d)] for r in range(d)]
+    for r, c in open_cells:
+        for nr, nc in T[(r, c)]:
+            new_rat_prob_map[nr][nc] += rat_prob_map[r][c] * T[(r, c)][(nr, nc)]
+    rat_prob_map = new_rat_prob_map
 
     # Main rat-finding loop
     while not found:
@@ -291,68 +313,40 @@ def bot1_2(info, visualize, alpha):
 
     return num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps
 
-# Bot 1 Implementation here
-def bot1(info, visualize, alpha):
-
+def bot2_2(info, visualize, alpha):
+    
     # Get initial bot position and ship configuration
     bot_r, bot_c = info['bot']
     rat_r, rat_c = info['rat']
     ship = info['empty_ship']
-    d = len(info['ship']) # dimension of ship grid
+    d = len(info['ship'])
 
-    # Initialize current bot position
+    # Initialize current positions
     curr_r, curr_c = bot_r, bot_c
     curr_rat_r, curr_rat_c = rat_r, rat_c
 
-    # Generate helper variables:
-    # - neighbor_map: maps each cell to # of blocked neighbors (2D array)
-    # - blocked_neighbors: map from # blocked neighbors to corresponding cell coordinates
+    # Generate helper variables
     neighbor_map, blocked_neighbors = create_neighbor_map(ship)
-    
-    # Initialize a set of possible cells based on current blocked neighbor count
-    set_possible_cells = {
-        (r, c)
-        for r in range(len(ship))
-        for c in range(len(ship[0]))
-        if ship[r][c] == 0
-    }
+    set_possible_cells = {(r, c) for r in range(d) for c in range(d) if ship[r][c] == 0}
 
-    # Initialize result variables that measure efficiency of rat-finding process
+    # Initialize result variables
     num_movements = 0
     num_blocked_cell_detects = 0
     num_space_rat_pings = 0
-    timesteps = 0  # Tracks total actions (move, blocked cell detects, pings)
+    timesteps = 0
 
     print("phase 1")
 
     # ----------------- PHASE 1: Localization -----------------
-    # Repeat until only one possible bot location remains
     while len(set_possible_cells) > 1:
-
-        #visualize_ship(info['ship'], None, title= f"Ship at t = {timesteps}")
-
-        # visualize_possible_cells(ship, possible_cells, title = f"possible cells, curr_pos: {curr_r}, {curr_c}")
-        
-        # Sense blocked neighbors at current position
+        # Sense blocked neighbors
         num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
-        
-        # filter possible cells to only include those that match current number of blocked neighbors
-        possible_cells = set()
-        for cellr, cellc in set_possible_cells:
-            if neighbor_map[cellr][cellc] == num_curr_blocked_ns:
-                possible_cells.add((cellr, cellc))
-        
-        # increment blocked_cell_detects and timestamps
+        possible_cells = {cell for cell in set_possible_cells if neighbor_map[cell[0]][cell[1]] == num_curr_blocked_ns}
         num_blocked_cell_detects += 1
         timesteps += 1
 
-        rat_move_choices = []
-        for d in directions:
-            new_rat_r = curr_rat_r + d[0]
-            new_rat_c = curr_rat_c + d[1]
-            if ship[new_rat_r][new_rat_c] == 0:
-                rat_move_choices.append(d)
-        
+        # Rat moves
+        rat_move_choices = [(dr, dc) for dr, dc in directions if ship[curr_rat_r + dr][curr_rat_c + dc] == 0]
         info['ship'][curr_rat_r][curr_rat_c] = 0
         actual_rat_move = random.choice(rat_move_choices)
         curr_rat_r += actual_rat_move[0]
@@ -360,64 +354,35 @@ def bot1(info, visualize, alpha):
         info['ship'][curr_rat_r][curr_rat_c] = 3
         info['rat'] = (curr_rat_r, curr_rat_c)
 
-        #visualize_ship(info['ship'], None, title= f"Ship at t = {timesteps}")
-
-        # key = direction, value = set of cells that are closed if we move from any of the current possible cells to that direction
-        direction_c = {(0,1): set(), (0,-1): set(), (-1,0): set(), (1,0): set()}
-
-        # loop through possible_cells set to populate direction_c
+        # Determine possible moves
+        direction_c = {(0, 1): set(), (0, -1): set(), (-1, 0): set(), (1, 0): set()}
         for pcr, pcc in possible_cells:
             for dr, dc in directions:
-                nr = pcr + dr
-                nc = pcc + dc
+                nr, nc = pcr + dr, pcc + dc
                 if ship[nr][nc] != 0:
-                    direction_c[(dr,dc)].add((pcr,pcc))
-        
-        # randomly choose a direction and move in that direction
+                    direction_c[(dr, dc)].add((pcr, pcc))
+
+        # Randomly choose a direction and move
         best_dir = random.choice(directions)
         nr, nc = curr_r + best_dir[0], curr_c + best_dir[1]
 
-        # if the move is successful
-        if ship[nr][nc] == 0:  
-
-            # remove all possible cells that had that move being impossible (blocked cell in that direction)
+        if ship[nr][nc] == 0:  # Successful move
             set_possible_cells = set(possible_cells).difference(direction_c[best_dir])
-            
-            # move in that direction
             curr_r, curr_c = nr, nc
-            
-            # modify the set of possible cells so we are considering all possible cells after the movement we just made
-            new_set_possible_cells = set()
-            for elem_r, elem_c in set_possible_cells:
-                new_cell = (elem_r + best_dir[0], elem_c + best_dir[1])
-                new_set_possible_cells.add(new_cell)
-            set_possible_cells = copy.deepcopy(new_set_possible_cells)
-            
-            # Update parameters in info to reflect changes 
-            info['bot'] = (curr_r, curr_c)  # Update bot position in info
-            info['ship'][bot_r][bot_c] = 0  # Clear old position
-            info['ship'][curr_r][curr_c] = 2  # Set new position
-
-            # Update bot position in loop
-            bot_r, bot_c = curr_r, curr_c 
-       
-        else:  # Move unsuccessful
-
-            # change set of possible cells to all cells that had impossible movement in that direction
+            new_set_possible_cells = {(r + best_dir[0], c + best_dir[1]) for r, c in set_possible_cells}
+            set_possible_cells = new_set_possible_cells
+            info['bot'] = (curr_r, curr_c)
+            info['ship'][bot_r][bot_c] = 0
+            info['ship'][curr_r][curr_c] = 2
+            bot_r, bot_c = curr_r, curr_c
+        else:  # Unsuccessful move
             set_possible_cells = direction_c[best_dir]
 
-        # visualize_possible_cells(ship, set_possible_cells, title = f"possible cells, curr_pos: {curr_r}, {curr_c}, move: {best_dir[0]}, {best_dir[1]}")
-        
         num_movements += 1
         timesteps += 1
 
-        rat_move_choices = []
-        for d in directions:
-            new_rat_r = curr_rat_r + d[0]
-            new_rat_c = curr_rat_c + d[1]
-            if ship[new_rat_r][new_rat_c] == 0:
-                rat_move_choices.append(d)
-
+        # Rat moves again
+        rat_move_choices = [(dr, dc) for dr, dc in directions if ship[curr_rat_r + dr][curr_rat_c + dc] == 0]
         info['ship'][curr_rat_r][curr_rat_c] = 0
         actual_rat_move = random.choice(rat_move_choices)
         curr_rat_r += actual_rat_move[0]
@@ -428,368 +393,31 @@ def bot1(info, visualize, alpha):
     print("phase 2")
 
     # ----------------- PHASE 2: Rat Finding -----------------
-
-    # store current position as only possible cell based on localization
+    
     curr_r, curr_c = set_possible_cells.pop()
-
-    # update info variables to be aligned with new changes and current ship state and bot position
     info['ship'][bot_r][bot_c] = 0
     info['ship'][curr_r][curr_c] = 2
     info['bot'] = (curr_r, curr_c)
-    info['rat'] = (curr_rat_r, curr_rat_c)
+    bot_r, bot_c = curr_r, curr_c
 
-    # Sync bot_r, bot_c with new position
-    bot_r, bot_c = curr_r, curr_c  
-
-    # Create Probability Map s.t. rat_prob_map[r][c] = probability that rat is at position r,c based on ping information so far
-    rat_prob_map = copy.deepcopy(info['empty_ship'])
-    
-    # Initialize all the probabilities for open cells to be uniformly the same number
-    # let's say we have x open cells. At the beginning, P(rat at r,c) = 1/x for all open cells (r,c)
-    num_open_cells = 0
-    for i in range(len(rat_prob_map)):
-        for j in range(len(rat_prob_map)):
-            if rat_prob_map[i][j] == 0:  # open
-                num_open_cells += 1
-            else:
-                rat_prob_map[i][j] = -1    
+    # Initialize probability map and transition matrix
+    rat_prob_map = [[-1 if ship[r][c] == 1 else 0 for c in range(d)] for r in range(d)]
+    T, open_cells = compute_transition_matrix(ship)
+    num_open_cells = len(open_cells)
     uniform_prob_i = 1 / num_open_cells
+    for r, c in open_cells:
+        rat_prob_map[r][c] = uniform_prob_i
 
-    # store coordinates for all open cells - useful for probability updates in ratfinding process
-    open_cells = set()
-    for i in range(len(rat_prob_map)):
-        for j in range(len(rat_prob_map)):
-            if rat_prob_map[i][j] == 0: 
-                rat_prob_map[i][j] = uniform_prob_i
-                open_cells.add((i,j))
-
-    # empty path which stores the current planned path coordinates of the bot to its next destination on the ship
     path = []
-
-    # Initial ping before the loop
-    ping_result = ping(info, alpha)
-
-    # Increment counter variables appropriately
-    num_space_rat_pings += 1
-    timesteps += 1
-
-    # if we are at the rat, return all the counter variables for all actions
-    if ping_result == 'Found':
-        return num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps
-    
-    # if we are not at the rat, update rat_prob_map
-    else:
-        
-        # rat cannot be at this position because we have not found the rat
-        rat_prob_map[bot_r][bot_c] = 0
-
-        # update probability that rat is at any other cell based on whether or not we heard a ping using conditional probability calculations described in write-up
-        summed_prob = 0
-
-        if ping_result == 'True':
-            for (r,c) in open_cells:
-                prob_rat = math.e ** (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1))
-                rat_prob_map[r][c] *= prob_rat
-                summed_prob += rat_prob_map[r][c]
-            for (r,c) in open_cells:
-                rat_prob_map[r][c] /= summed_prob
-
-        elif ping_result == 'False':
-            for (r,c) in open_cells:
-                rat_prob_map[r][c] *= (1 - math.e ** (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1)))
-                summed_prob += rat_prob_map[r][c]
-            for (r,c) in open_cells:
-                rat_prob_map[r][c] /= summed_prob
-
-        sum_rat_prob = 0
-        for r in range(len(rat_prob_map)):
-            for c in range(len(rat_prob_map)):
-                if rat_prob_map[r][c] != -1:
-                    sum_rat_prob += rat_prob_map[r][c]
-        
-        #print("OG sum rat prob", sum_rat_prob)
-
-        new_rat_prob_map = copy.deepcopy(info['empty_ship'])
-        for i in range(len(new_rat_prob_map)):
-            for j in range(len(new_rat_prob_map)):
-                if new_rat_prob_map[i][j] == 1:
-                    new_rat_prob_map[i][j] = -1
-
-        #print("check", new_rat_prob_map)
-
-        #visualize_rat_prob_map(rat_prob_map=rat_prob_map, title = "previous")
-
-        for r in range(len(rat_prob_map)):
-            for c in range(len(new_rat_prob_map)):
-                if ship[r][c] == 0: # if open cell
-                    #print("\nr,c", r, c)
-                    curr_num_open_neighbors = 0
-                    curr_prob = rat_prob_map[r][c]
-                    for dr, dc in [(0,1), (0,-1), (-1,0), (1,0)]:
-                        nr, nc = r + dr, c + dc
-                       # print("nr,nc", nr, nc)
-                        if ship[nr][nc] == 0:
-                            #print("open")
-                            curr_num_open_neighbors += 1
-                   # print("curr_num_open_neighbors", curr_num_open_neighbors)
-                    for dr, dc in directions:
-                        nr, nc = r + dr, c + dc
-                        if ship[nr][nc] == 0:
-                            new_rat_prob_map[nr][nc] +=  curr_prob / curr_num_open_neighbors
-
-        
-        
-        #print(new_rat_prob_map)
-        if visualize: visualize_rat_prob_map(rat_prob_map=new_rat_prob_map, title = "new")
-
-        new_rat_prob_sum = 0
-        for r in range(len(rat_prob_map)):
-            for c in range(len(new_rat_prob_map)):
-                if ship[r][c] == 0:
-                    new_rat_prob_sum += new_rat_prob_map[r][c]
-        # print(new_rat_prob_sum)
-
-        if visualize: visualize_rat_prob_map(rat_prob_map, None, title = f"New rat prob map, t = {timesteps}")
-
-
-    # found variable that keeps track of whether or not rat has been found
     found = False
 
-    # keep pinging and moving until we find the rat
-    while not found:
-        
-        if visualize: visualize_side_by_side(rat_prob_map, info['ship'], path, info['bot'], title = f"Timesteps {timesteps}")
-        
-        # determine the coordinates of the cell where we think the rat is most likely at based on all the ping results we have done so far
-        highest_rat_prob = 0
-        highest_rat_prob_cell = (-1,-1)
-        for i in range(len(rat_prob_map)):
-            for j in range(len(rat_prob_map)):
-                if rat_prob_map[i][j] > highest_rat_prob:
-                    highest_rat_prob = rat_prob_map[i][j]
-                    highest_rat_prob_cell = (i,j)
-
-        # plan a shortest distance path to that cell using A*
-        path = astar(info['bot'], info['empty_ship'], highest_rat_prob_cell)
-
-        # commit to that path and move along every cell in the shortest distance path
-        for new_r, new_c in path:
-            
-            # Move
-            info['ship'][bot_r][bot_c] = 0  # Clear old position
-            info['bot'] = (new_r, new_c) # Update new bot position
-            info['ship'][new_r][new_c] = 2  # Set new position in ship
-            bot_r, bot_c = new_r, new_c  # Update bot_r, bot_c
-            
-            # increment counter variables by 1 - move and timesteps
-            num_movements += 1
-            timesteps += 1
-
-            # move the rat
-            rat_move_choices = []
-            for d in directions:
-                new_rat_r = curr_rat_r + d[0]
-                new_rat_c = curr_rat_c + d[1]
-                if ship[new_rat_r][new_rat_c] == 0:
-                    rat_move_choices.append(d)
-
-            info['ship'][curr_rat_r][curr_rat_c] = 0
-            actual_rat_move = random.choice(rat_move_choices)
-            curr_rat_r += actual_rat_move[0]
-            curr_rat_c += actual_rat_move[1]
-            info['ship'][curr_rat_r][curr_rat_c] = 3
-            info['rat'] = (curr_rat_r, curr_rat_c)
-            
-            # ping the rat and increment appropriate counter variables
-            ping_result = ping(info, alpha)
-            num_space_rat_pings += 1
-            timesteps += 1
-
-            # move the rat
-            rat_move_choices = []
-            for d in directions:
-                new_rat_r = curr_rat_r + d[0]
-                new_rat_c = curr_rat_c + d[1]
-                if ship[new_rat_r][new_rat_c] == 0:
-                    rat_move_choices.append(d)
-
-            info['ship'][curr_rat_r][curr_rat_c] = 0
-            actual_rat_move = random.choice(rat_move_choices)
-            curr_rat_r += actual_rat_move[0]
-            curr_rat_c += actual_rat_move[1]
-            info['ship'][curr_rat_r][curr_rat_c] = 3
-            info['rat'] = (curr_rat_r, curr_rat_c)
-
-            # if rat is found, we are done; return counter variables
-            if ping_result == 'Found':
-                return num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps
-
-            # if rat is not found, update rat_prob_map based on conditional probability approach described in write up
-            else:
-                summed_prob = 0
-                rat_prob_map[bot_r][bot_c] = 0
-                if ping_result == 'True':
-                    for (r,c) in open_cells:
-                        prob_rat = math.e ** (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1))
-                        rat_prob_map[r][c] *= prob_rat
-                        summed_prob += rat_prob_map[r][c]
-                    for (r,c) in open_cells:
-                        rat_prob_map[r][c] /= summed_prob
-                elif ping_result == 'False':
-                    for (r,c) in open_cells:
-                        rat_prob_map[r][c] *= (1 - math.e ** (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1)))
-                        summed_prob += rat_prob_map[r][c]
-                    for (r,c) in open_cells:
-                        rat_prob_map[r][c] /= summed_prob
-            
-            for r in range(len(rat_prob_map)):
-                for c in range(len(new_rat_prob_map)):
-                    if ship[r][c] == 0: # if open cell
-                        #print("\nr,c", r, c)
-                        curr_num_open_neighbors = 0
-                        curr_prob = rat_prob_map[r][c]
-                        for dr, dc in [(0,1), (0,-1), (-1,0), (1,0)]:
-                            nr, nc = r + dr, c + dc
-                            #print("nr,nc", nr, nc)
-                            if ship[nr][nc] == 0:
-                                #print("open")
-                                curr_num_open_neighbors += 1
-                        #print("curr_num_open_neighbors", curr_num_open_neighbors)
-                        for dr, dc in directions:
-                            nr, nc = r + dr, c + dc
-                            if ship[nr][nc] == 0:
-                                new_rat_prob_map[nr][nc] +=  curr_prob / curr_num_open_neighbors
-
-            rat_prob_map = new_rat_prob_map
-            
-            if visualize:
-                visualize_side_by_side(rat_prob_map, info['ship'], path, info['bot'], title = f"Timesteps {timesteps}")
-      
-
-def bot2(info, visualize, alpha):
-    # Get initial information about bot and ship
-    bot_r, bot_c = info['bot']
-    ship = info['empty_ship']
-    d = len(info['ship'])
-    rat_r, rat_c = info['rat']
-
-    # Set up variables to help determine bot position
-    curr_r, curr_c = bot_r, bot_c
-    neighbor_map, blocked_neighbors = create_neighbor_map(ship)
-    num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
-    possible_cells = set_possible_cells = set(blocked_neighbors[num_curr_blocked_ns])
-    curr_rat_r, curr_rat_c = rat_r, rat_c
-    prev_dirc = (1,1)
+    # Initial ping
+    ping_result = ping(info, alpha)
+    num_space_rat_pings += 1
+    timesteps += 1
     
-    # Initialize result variables that provide insight to rat-finding process
-    num_movements = 0
-    num_blocked_cell_detects = 0
-    num_space_rat_pings = 0
-    timesteps = 0  # Tracks total actions (sense, ping, move)
-
-    print("phase 1")
-
-    ## Phase 1: Localization
-    while len(possible_cells) > 1:
-
-        #visualize_possible_cells(ship, possible_cells, title = f"possible cells, curr_pos: {curr_r}, {curr_c}")
-        # Sense blocked neighbors (alternating action 1)
-        num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
-        #visualize_neighbor_map(neighbor_map, title = f"NEIGHBOR MAPPPP, curr_pos: {curr_r}, {curr_c}")
-        #print("num_curr_blocked_ns", num_curr_blocked_ns)
-        possible_cells = set()
-        for cellr, cellc in set_possible_cells:
-            if neighbor_map[cellr][cellc] == num_curr_blocked_ns:
-                possible_cells.add((cellr, cellc))
-        num_blocked_cell_detects += 1
-        timesteps += 1
-
-
-        # Determine the most commonly open direction and attempt to move (alternating action 2)
-        direction_o = {(0,1): 0, (0,-1): 0, (-1,0): 0, (1,0): 0}
-        direction_c = {(0,1): set(), (0,-1): set(), (-1,0): set(), (1,0): set()}
-
-        for pcr, pcc in possible_cells:
-            for dr, dc in directions:
-                nr = pcr + dr
-                nc = pcc + dc
-                if ship[nr][nc] == 0:
-                    direction_o[(dr,dc)] += 1
-                else:
-                    direction_c[(dr,dc)].add((pcr,pcc))
-        
-        best_dir_arr = sorted(direction_o, key=lambda x: direction_o[x])
-        best_dir = random.choice(best_dir_arr)
-    
-        nr, nc = curr_r + best_dir[0], curr_c + best_dir[1]
-
-        if ship[nr][nc] == 0:  # Open, move successful
-            set_possible_cells = set(possible_cells).difference(direction_c[best_dir])
-            curr_r, curr_c = nr, nc
-            num_curr_blocked_ns = neighbor_map[curr_r][curr_c]
-            new_set_possible_cells = set()
-            for elem_r, elem_c in set_possible_cells:
-                new_cell = (elem_r + best_dir[0], elem_c + best_dir[1])
-                new_set_possible_cells.add(new_cell)
-            set_possible_cells = copy.deepcopy(new_set_possible_cells)
-            info['bot'] = (curr_r, curr_c)  # Update bot position in info
-            info['ship'][bot_r][bot_c] = 0  # Clear old position
-            info['ship'][curr_r][curr_c] = 2  # Set new position
-            bot_r, bot_c = curr_r, curr_c  # Update bot_r, bot_c
-        else:  # Blocked, no movement
-            set_possible_cells = direction_c[best_dir]
-        
-        #print("best_dir", best_dir)
-        num_movements += 1
-        
-        timesteps += 1
-
-   
-    
-
-
-
-    #
-    ##
-    ###
-    #### Phase 2: Rat finding
-    ###
-    ##
-    #
-    print("phase 2")
-    curr_r, curr_c = set_possible_cells.pop()
-    info['ship'][bot_r][bot_c] = 0
-    info['ship'][curr_r][curr_c] = 2
-    info['bot'] = (curr_r, curr_c)
-    bot_r, bot_c = curr_r, curr_c  # Sync bot_r, bot_c with new position
-
-    # creating rat prob map
-    rat_prob_map = copy.deepcopy(info['empty_ship'])
-    num_open_cells = 0
-    for i in range(len(rat_prob_map)):
-        for j in range(len(rat_prob_map)):
-            if rat_prob_map[i][j] == 0:  # open
-                num_open_cells += 1
-            else:
-                rat_prob_map[i][j] = -1    
-    uniform_prob_i = 1 / num_open_cells
-
-    open_cells = set()
-    for i in range(len(rat_prob_map)):
-        for j in range(len(rat_prob_map)):
-            if rat_prob_map[i][j] == 0: 
-                rat_prob_map[i][j] = uniform_prob_i
-                open_cells.add((i,j))
-
-    path = []
-
-    rat_move_choices = []
-    for d in directions:
-        new_rat_r = curr_rat_r + d[0]
-        new_rat_c = curr_rat_c + d[1]
-        if ship[new_rat_r][new_rat_c] == 0:
-            rat_move_choices.append(d)
-
+    # rat moves because a timestep (ping) occurred
+    rat_move_choices = [(dr, dc) for dr, dc in directions if ship[curr_rat_r + dr][curr_rat_c + dc] == 0]
     info['ship'][curr_rat_r][curr_rat_c] = 0
     actual_rat_move = random.choice(rat_move_choices)
     curr_rat_r += actual_rat_move[0]
@@ -797,72 +425,59 @@ def bot2(info, visualize, alpha):
     info['ship'][curr_rat_r][curr_rat_c] = 3
     info['rat'] = (curr_rat_r, curr_rat_c)
 
-    # Initial ping before the loop
-
-    ping_result = ping(info, alpha)
-    num_space_rat_pings += 1
-    timesteps += 1
-
     if ping_result == 'Found':
         return num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps
-    else:
-        rat_prob_map[bot_r][bot_c] = 0
-        summed_prob = 0
-        if ping_result == 'True':
-            for (r,c) in open_cells:
-                prob_rat = math.e ** (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1))
-                rat_prob_map[r][c] *= prob_rat
-                summed_prob += rat_prob_map[r][c]
-            for (r,c) in open_cells:
-                rat_prob_map[r][c] /= summed_prob
-        elif ping_result == 'False':
-            for (r,c) in open_cells:
-                rat_prob_map[r][c] *= (1 - math.e ** (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1)))
-                summed_prob += rat_prob_map[r][c]
-            for (r,c) in open_cells:
-                rat_prob_map[r][c] /= summed_prob
 
+    # Update probabilities based on initial ping
+    rat_prob_map[bot_r][bot_c] = 0
+    summed_prob = 0
+    if ping_result == 'True':
+        for r, c in open_cells:
+            prob_rat = math.e ** (-alpha * (abs(r - bot_r) + abs(c - bot_c) - 1))
+            rat_prob_map[r][c] *= prob_rat
+            summed_prob += rat_prob_map[r][c]
+    else:  # 'False'
+        for r, c in open_cells:
+            rat_prob_map[r][c] *= (1 - math.e ** (-alpha * (abs(r - bot_r) + abs(c - bot_c) - 1)))
+            summed_prob += rat_prob_map[r][c]
+    for r, c in open_cells:
+        rat_prob_map[r][c] /= summed_prob
 
-    found = False
+    # Update probabilities based on rat movement
+    new_rat_prob_map = [[-1 if ship[r][c] == 1 else 0 for c in range(d)] for r in range(d)]
+    for r, c in open_cells:
+        for nr, nc in T[(r, c)]:
+            new_rat_prob_map[nr][nc] += rat_prob_map[r][c] * T[(r, c)][(nr, nc)]
+    rat_prob_map = new_rat_prob_map
 
-    steps_towards_before_recalc = 15
-
+    # Main rat-finding loop
     while not found:
-        if visualize: visualize_rat_prob_map(rat_prob_map)
+        if visualize:
+            visualize_side_by_side(rat_prob_map, info['ship'], path, info['bot'], title=f"Timesteps {timesteps}")
+
+        # Find cell with highest probability
         highest_rat_prob = 0
-        highest_rat_prob_cell = (-1,-1)
-        for i in range(len(rat_prob_map)):
-            for j in range(len(rat_prob_map)):
-                "come back here"
-                manhattan_dist = abs(i - bot_r) + abs(j - bot_c)
-                temp = rat_prob_map[i][j] / (manhattan_dist + 20)
-                if temp > highest_rat_prob:
-                    highest_rat_prob = temp
-                    highest_rat_prob_cell = (i,j)
-        
-        # if highest_rat_prob < .20:
-        #     pass
-                    
-        path = astar(info['bot'], info['empty_ship'], highest_rat_prob_cell)
+        highest_rat_prob_cell = (-1, -1)
+        for r, c in open_cells:
+            if rat_prob_map[r][c] > highest_rat_prob:
+                highest_rat_prob = rat_prob_map[r][c]
+                highest_rat_prob_cell = (r, c)
 
+        # Plan shortest path using A*
+        path = astar_with_heuristic(info['bot'], rat_prob_map, info['empty_ship'], highest_rat_prob_cell)
 
-        for new_r, new_c in path[:steps_towards_before_recalc]:
-            # Move
-            info['ship'][bot_r][bot_c] = 0  # Clear old position
+        # Move along the path
+        for new_r, new_c in path[:10]:
+            # Move bot
+            info['ship'][bot_r][bot_c] = 0
             info['bot'] = (new_r, new_c)
-            info['ship'][new_r][new_c] = 2  # Set new position
-            bot_r, bot_c = new_r, new_c  # Update bot_r, bot_c
+            info['ship'][new_r][new_c] = 2
+            bot_r, bot_c = new_r, new_c
             num_movements += 1
             timesteps += 1
-            
 
-            rat_move_choices = []
-            for d in directions:
-                new_rat_r = curr_rat_r + d[0]
-                new_rat_c = curr_rat_c + d[1]
-                if ship[new_rat_r][new_rat_c] == 0:
-                    rat_move_choices.append(d)
-
+            # Rat moves
+            rat_move_choices = [(dr, dc) for dr, dc in directions if ship[curr_rat_r + dr][curr_rat_c + dc] == 0]
             info['ship'][curr_rat_r][curr_rat_c] = 0
             actual_rat_move = random.choice(rat_move_choices)
             curr_rat_r += actual_rat_move[0]
@@ -870,81 +485,49 @@ def bot2(info, visualize, alpha):
             info['ship'][curr_rat_r][curr_rat_c] = 3
             info['rat'] = (curr_rat_r, curr_rat_c)
 
-
+            # Ping
             ping_result = ping(info, alpha)
             num_space_rat_pings += 1
-
-            # if num_movements % steps_before_ping == 0:
-            #     for i in range(num_ping):
             timesteps += 1
-
-            rat_move_choices = []
-            for d in directions:
-                new_rat_r = curr_rat_r + d[0]
-                new_rat_c = curr_rat_c + d[1]
-                if ship[new_rat_r][new_rat_c] == 0:
-                    rat_move_choices.append(d)
-
-            info['ship'][curr_rat_r][curr_rat_c] = 0
-            actual_rat_move = random.choice(rat_move_choices)
-            curr_rat_r += actual_rat_move[0]
-            curr_rat_c += actual_rat_move[1]
-            info['ship'][curr_rat_r][curr_rat_c] = 3
-            info['rat'] = (curr_rat_r, curr_rat_c)
 
             if ping_result == 'Found':
                 return num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps
-            else:
-                summed_prob = 0
-                rat_prob_map[bot_r][bot_c] = 0
-                if ping_result == 'True':
-                    for (r,c) in open_cells:
-                        prob_rat = math.e ** (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1))
-                        rat_prob_map[r][c] *= prob_rat
-                        summed_prob += rat_prob_map[r][c]
-                    for (r,c) in open_cells:
-                        rat_prob_map[r][c] /= summed_prob
-                elif ping_result == 'False':
-                    for (r,c) in open_cells:
-                        rat_prob_map[r][c] *= (1 - math.e ** (-alpha * ((abs(r - bot_r) + abs(c - bot_c))-1)))
-                        summed_prob += rat_prob_map[r][c]
-                    for (r,c) in open_cells:
-                        if summed_prob == 0:
-                            visualize_rat_prob_map(rat_prob_map=rat_prob_map, path= None, )
-                        rat_prob_map[r][c] /= summed_prob
-            
-            new_rat_prob_map = copy.deepcopy(info['empty_ship'])
-            for i in range(len(new_rat_prob_map)):
-                for j in range(len(new_rat_prob_map)):
-                    if new_rat_prob_map[i][j] == 1:
-                        new_rat_prob_map[i][j] = -1
 
-            # for r in range(len(rat_prob_map)):
-            #     for c in range(len(new_rat_prob_map)):
-            #         if ship[r][c] == 0: # if open cell
-            #             #print("\nr,c", r, c)
-            #             curr_num_open_neighbors = 0
-            #             curr_prob = rat_prob_map[r][c]
-            #             for dr, dc in [(0,1), (0,-1), (-1,0), (1,0)]:
-            #                 nr, nc = r + dr, c + dc
-            #                 #print("nr,nc", nr, nc)
-            #                 if ship[nr][nc] == 0:
-            #                     #print("open")
-            #                     curr_num_open_neighbors += 1
-            #             #print("curr_num_open_neighbors", curr_num_open_neighbors)
-            #             for dr, dc in directions:
-            #                 nr, nc = r + dr, c + dc
-            #                 if ship[nr][nc] == 0:
-            #                     new_rat_prob_map[nr][nc] +=  curr_prob / curr_num_open_neighbors
+            # Update probabilities based on ping
+            rat_prob_map[bot_r][bot_c] = 0
+            summed_prob = 0
+            if ping_result == 'True':
+                for r, c in open_cells:
+                    prob_rat = math.e ** (-alpha * (abs(r - bot_r) + abs(c - bot_c) - 1))
+                    rat_prob_map[r][c] *= prob_rat
+                    summed_prob += rat_prob_map[r][c]
+            else:  # 'False'
+                for r, c in open_cells:
+                    rat_prob_map[r][c] *= (1 - math.e ** (-alpha * (abs(r - bot_r) + abs(c - bot_c) - 1)))
+                    summed_prob += rat_prob_map[r][c]
+            for r, c in open_cells:
+                rat_prob_map[r][c] /= summed_prob if summed_prob > 0 else 1
 
-            # rat_prob_map = new_rat_prob_map
+            # Update probabilities based on rat movement
+            new_rat_prob_map = [[-1 if ship[r][c] == 1 else 0 for c in range(d)] for r in range(d)]
+            for r, c in open_cells:
+                for nr, nc in T[(r, c)]:
+                    new_rat_prob_map[nr][nc] += rat_prob_map[r][c] * T[(r, c)][(nr, nc)]
+            rat_prob_map = new_rat_prob_map
+
+            # Rat moves again
+            rat_move_choices = [(dr, dc) for dr, dc in directions if ship[curr_rat_r + dr][curr_rat_c + dc] == 0]
+            info['ship'][curr_rat_r][curr_rat_c] = 0
+            actual_rat_move = random.choice(rat_move_choices)
+            curr_rat_r += actual_rat_move[0]
+            curr_rat_c += actual_rat_move[1]
+            info['ship'][curr_rat_r][curr_rat_c] = 3
+            info['rat'] = (curr_rat_r, curr_rat_c)
 
             if visualize:
-                visualize_side_by_side(rat_prob_map, info['ship'], path, info['bot'], title = f"Timesteps {timesteps}, Ping_result = {ping_result}")
+                visualize_side_by_side(rat_prob_map, info['ship'], path, info['bot'], title=f"Timesteps {timesteps}")
 
-    
     return num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps
-
 
 
 def init_ship(dimension):
@@ -1077,7 +660,6 @@ def astar_with_heuristic(start, rat_prob_map, map, button):
     prev = dict()
     prev[start] = None
 
-    PURPLE_CELL_PENALTY = 15
 
     while fringe:
         curr = heapq.heappop(fringe)
@@ -1096,8 +678,7 @@ def astar_with_heuristic(start, rat_prob_map, map, button):
             if 0 <= nr < d and 0 <= nc < d and (map[nr][nc] != 1 and map[nr][nc] != -1):
                 cost = total_costs[curr[1]] + 1
 
-                if rat_prob_map[nr][nc] == 0:
-                    cost += PURPLE_CELL_PENALTY
+                cost -= (100 * rat_prob_map[nr][nc])
 
                 est_total_cost = cost + heuristic(child)
                 if child not in total_costs:

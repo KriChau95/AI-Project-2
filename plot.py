@@ -1,41 +1,31 @@
+import pandas as pd
 import matplotlib.pyplot as plt
 
-# Initialize lists
-alpha = []
-blocked = []
-pings = []
-movements = []
-timesteps = []
+# Load the data
+bot1 = pd.read_csv('bot_1_results.txt', skipinitialspace=True)
+bot2 = pd.read_csv('bot_2_results.txt', skipinitialspace=True)
+bot1_moving = pd.read_csv('bot_1_moving_rat_results.txt', skipinitialspace=True)
+bot2_moving = pd.read_csv('bot_2_moving_rat_results.txt', skipinitialspace=True)
 
-# Read and parse the file
-with open('bot_2_results.txt', 'r') as file:
-    lines = file.readlines()
 
-# Skip header and parse values
-for line in lines[1:]:
-    parts = line.strip().split(',')
-    alpha.append(float(parts[0]))
-    blocked.append(float(parts[1]))
-    pings.append(float(parts[2]))
-    movements.append(float(parts[3]))
-    timesteps.append(float(parts[4]))
 
-# Compute y-axis range for consistent scale
-y_min = 0
-y_max = max(max(blocked), max(pings), max(movements), max(timesteps))
-y_max_padded = y_max * 1.1
+# Metrics to plot
+metrics = ['Avg Blocked Cell Detects', 'Avg Space Rat Pings', 'Avg Movements', 'Avg Timesteps']
+colors = ['tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple']
 
-# Plot the metrics
-plt.figure(figsize=(10, 6))
-plt.plot(alpha, blocked, marker='o', linestyle='-', label='Avg Blocked Cell Detects')
-plt.plot(alpha, pings, marker='s', linestyle='-', label='Avg Space Rat Pings')
-plt.plot(alpha, movements, marker='^', linestyle='-', label='Avg Movements')
-plt.plot(alpha, timesteps, marker='x', linestyle='-', label='Avg Timesteps')
-plt.xlabel("Alpha Values")
-plt.ylabel("Average Counts")
-plt.title("Bot 1 Performance Metrics vs Alpha Values")
-plt.ylim(y_min, y_max_padded)
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-plt.show()
+# Plot each metric in its own figure
+for metric in metrics:
+    plt.figure(figsize=(10, 6))
+    plt.plot(bot1['Alpha'], bot1[metric], label='Bot 1', color=colors[0], marker='o')
+    plt.plot(bot2['Alpha'], bot2[metric], label='Bot 2 with cost = 225', color=colors[2], marker='x')
+    plt.plot(bot1_moving['Alpha'], bot1_moving[metric], label='Bot 1 moving', color=colors[3], marker='x')
+    plt.plot(bot2_moving['Alpha'], bot2_moving[metric], label='Bot 2 moving', color=colors[4], marker='x')
+
+
+    plt.title(f'{metric} vs Alpha')
+    plt.xlabel('Alpha')
+    plt.ylabel(metric)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
