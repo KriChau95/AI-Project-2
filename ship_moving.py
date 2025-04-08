@@ -467,7 +467,7 @@ def bot2_2(info, visualize, alpha):
         path = astar_with_heuristic(info['bot'], rat_prob_map, info['empty_ship'], highest_rat_prob_cell)
 
         # Move along the path
-        for new_r, new_c in path[:10]:
+        for new_r, new_c in path[:2]:
             # Move bot
             info['ship'][bot_r][bot_c] = 0
             info['bot'] = (new_r, new_c)
@@ -678,7 +678,7 @@ def astar_with_heuristic(start, rat_prob_map, map, button):
             if 0 <= nr < d and 0 <= nc < d and (map[nr][nc] != 1 and map[nr][nc] != -1):
                 cost = total_costs[curr[1]] + 1
 
-                cost -= (100 * rat_prob_map[nr][nc])
+                cost -= (1000 * rat_prob_map[nr][nc])
 
                 est_total_cost = cost + heuristic(child)
                 if child not in total_costs:
@@ -694,13 +694,13 @@ def main():
     og_info = init_ship(30)
 
     info_1 = copy.deepcopy(og_info)
-
+    info_2 = copy.deepcopy(og_info)
     print("BOT", info_1['bot'])
     print("RAT", info_1['rat'])
 
     visualize_ship(og_info['ship'], None)
 
-    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot1_2(info_1, True, 0.1)
+    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot1_2(info_1, True, 0.04)
 
     print("BOT 1 PEFORMANCE:")
     print("num_blocked_cell_detects", num_blocked_cell_detects),
@@ -708,6 +708,14 @@ def main():
     print("num_movements", num_movements)
     print("time_steps", timesteps)
         
+
+    num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = bot2_2(info_2, True, 0.04)
+
+    print("BOT 2 PEFORMANCE:")
+    print("num_blocked_cell_detects", num_blocked_cell_detects),
+    print("num_space_rat_pings", num_space_rat_pings)
+    print("num_movements", num_movements)
+    print("time_steps", timesteps)
 
 if __name__ == "__main__":
     main()
