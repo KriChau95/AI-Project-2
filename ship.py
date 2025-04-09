@@ -2,11 +2,7 @@
 
 # Importing libraries for randomness, data structures, and data visualization
 import random
-import numpy as np
 import heapq
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors 
-import matplotlib.animation as animation
 from collections import deque, defaultdict
 import copy
 import math
@@ -589,7 +585,7 @@ def bot2(info, visualize, alpha):
         num_movements += dfs_moves
         num_space_rat_pings += dfs_pings
         timesteps += dfs_timesteps
-        if visualize and path:
+        if visualize:
             visualize_ship(info['ship'], path, title="DFS Path when alpha = 0")
         return num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps
     
@@ -614,6 +610,7 @@ def bot2(info, visualize, alpha):
                 rat_prob_map[i][j] = uniform_prob_i
                 open_cells.add((i,j))
 
+    
     path = []
     num_pings = 1
     
@@ -685,7 +682,7 @@ def bot2(info, visualize, alpha):
             if rat_prob_map[bot_r][bot_c] == 0:
                 continue
             
-            # Ping if we have not visited this cell yet
+            # Ping if this cell has a possibility of having the rat
             ping_result = ping(info, alpha)
 
             # Increment appropriate counters

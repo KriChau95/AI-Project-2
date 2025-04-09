@@ -1,24 +1,22 @@
 # Importing libraries for randomness, data structures, and data visualization
-import os
 import ship
 import ship_moving
-import matplotlib.pyplot as plt
 import random
-from collections import defaultdict, deque
+from collections import defaultdict
 import copy
 
 # setting a random seed for reproducible experiments
-random.seed(42)
+random.seed(5)
 
 # Create the txt files to store results for each bot
 bot_1_results_file = "bot_1_results.txt"
 bot_2_results_file = "bot_2_results.txt"
 bot_1_moving_rat_results_file = "bot_1_moving_rat_results.txt"
-bot_2_moving_rat_results_file = "bot_2_moving_rat_results.txt"
+bot_2_moving_rat_results_file = "bot_22_moving_rat_results.txt"
 
 # Specify number of ships to create
-num_ships = 20
-num_iterations = 10
+num_ships = 5
+num_iterations = 5
 
 # Initialize array to store num_ships ships
 ships = []
@@ -37,7 +35,8 @@ bot_1_moving_rat_results = defaultdict(list)
 bot_2_moving_rat_results = defaultdict(list)
 
 # list of alpha values to test
-alpha_values = [0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22, 0.24, 0.26, 0.28, 0.30, 0.35, 0.40, 0.45, 0.50]
+alpha_values = [0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22, 0.24, 0.26, 0.28, 0.30, 0.35, 0.40, 0.45, 0.50]
+alpha_values = [0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22]
 
 # Test Bot 1 Stationary Rat Case
 with open(bot_1_results_file, "w") as f:
@@ -116,7 +115,7 @@ with open(bot_2_results_file, "w") as f:
         f.write(f"{alpha}, {avg_num_blocked_cell_detects}, {avg_num_space_rat_pings}, {avg_num_movements}, {avg_timesteps}\n")
 
 
-# # Test Bot 1 Moving Rat Case
+# Test Bot 1 Moving Rat Case
 with open(bot_1_moving_rat_results_file, "w") as f:
     
     f.write("Alpha, Avg Blocked Cell Detects, Avg Space Rat Pings, Avg Movements, Avg Timesteps\n")
@@ -173,7 +172,7 @@ with open(bot_2_moving_rat_results_file, "w") as f:
                 visualize = False
                 curr_ship = copy.deepcopy(ships[i])
                 # Capture all four returned values
-                num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = ship_moving.bot2_2(curr_ship, visualize, alpha)
+                num_blocked_cell_detects, num_space_rat_pings, num_movements, timesteps = ship_moving.bot2_3(curr_ship, visualize, alpha)
                 
                 avg_num_blocked_cell_detects += num_blocked_cell_detects
                 avg_num_space_rat_pings += num_space_rat_pings
