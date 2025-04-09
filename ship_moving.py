@@ -178,16 +178,9 @@ def create_neighbor_map(ship):
 
 
 # New helper function to compute the transition matrix (dictionary of dictionaries) to account for probabilities of rat movement
-def compute_transition_matrix(ship):
+def compute_transition_matrix(ship, open_cells):
     
     d = len(ship)
-    
-    # store all open cell coordinates in a list
-    open_cells = []
-    for r in range(d):
-        for c in range(d):
-            if ship[r][c] == 0:
-                open_cells.append((r,c))
     
     # create a dictionary of dictionaries to store the probability that the rat moves from one state to the next
     T = defaultdict(lambda: defaultdict(float))
@@ -209,17 +202,24 @@ def compute_transition_matrix(ship):
             T[(r, c)][(nr, nc)] = prob
     
     # return the information stored in T as well as the open cells
-    return T, open_cells
+    return T
 
 # Baseline Bot 1 that has overall algorithmic approach similar to Baseline bot 1 in stationary case
 # Main difference is that probabilistic knowledge base is modified to appropriately account for moving rat
 def bot1_2(info, visualize, alpha):
-    
+
     # Get initial bot position and ship configuration
     bot_r, bot_c = info['bot']
     rat_r, rat_c = info['rat']
     ship = info['empty_ship']
     d = len(info['ship'])
+
+    # store all open cell coordinates in a list
+    open_cells = []
+    for r in range(d):
+        for c in range(d):
+            if ship[r][c] == 0:
+                open_cells.append((r,c))
 
     # Initialize current positions
     curr_r, curr_c = bot_r, bot_c
@@ -299,7 +299,7 @@ def bot1_2(info, visualize, alpha):
 
     # Initialize probability map and transition matrix
     rat_prob_map = [[-1 if ship[r][c] == 1 else 0 for c in range(d)] for r in range(d)]
-    T, open_cells = compute_transition_matrix(ship)
+    T = compute_transition_matrix(ship, open_cells)
     num_open_cells = len(open_cells)
     uniform_prob_i = 1 / num_open_cells
     for r, c in open_cells:
@@ -435,6 +435,13 @@ def bot2_2(info, visualize, alpha):
     ship = info['empty_ship']
     d = len(info['ship'])
 
+    # store all open cell coordinates in a list
+    open_cells = []
+    for r in range(d):
+        for c in range(d):
+            if ship[r][c] == 0:
+                open_cells.append((r,c))
+
     # Initialize current positions
     curr_r, curr_c = bot_r, bot_c
     curr_rat_r, curr_rat_c = rat_r, rat_c
@@ -512,7 +519,7 @@ def bot2_2(info, visualize, alpha):
 
     # Initialize probability map and transition matrix
     rat_prob_map = [[-1 if ship[r][c] == 1 else 0 for c in range(d)] for r in range(d)]
-    T, open_cells = compute_transition_matrix(ship)
+    T = compute_transition_matrix(ship, open_cells)
     num_open_cells = len(open_cells)
     uniform_prob_i = 1 / num_open_cells
     for r, c in open_cells:
@@ -562,6 +569,7 @@ def bot2_2(info, visualize, alpha):
 
     # Main rat-finding loop
     while not found:
+        
         if visualize:
             visualize_side_by_side(rat_prob_map, info['ship'], path, info['bot'], title=f"Timesteps {timesteps}")
 
@@ -648,6 +656,13 @@ def bot2_3(info, visualize, alpha):
     ship = info['empty_ship']
     d = len(info['ship'])
 
+    # store all open cell coordinates in a list
+    open_cells = []
+    for r in range(d):
+        for c in range(d):
+            if ship[r][c] == 0:
+                open_cells.append((r,c))
+
     # Initialize current positions
     curr_r, curr_c = bot_r, bot_c
     curr_rat_r, curr_rat_c = rat_r, rat_c
@@ -662,7 +677,7 @@ def bot2_3(info, visualize, alpha):
     num_space_rat_pings = 0
     timesteps = 0
 
-    print("phase 1")
+    if visualize: print("phase 1")
 
     # ----------------- PHASE 1: Localization -----------------
     while len(set_possible_cells) > 1:
@@ -717,7 +732,7 @@ def bot2_3(info, visualize, alpha):
         info['ship'][curr_rat_r][curr_rat_c] = 3
         info['rat'] = (curr_rat_r, curr_rat_c)
 
-    print("phase 2")
+    if visualize: print("phase 2")
 
     # ----------------- PHASE 2: Rat Finding -----------------
     curr_r, curr_c = set_possible_cells.pop()
@@ -728,7 +743,7 @@ def bot2_3(info, visualize, alpha):
 
     # Initialize probability map and transition matrix
     rat_prob_map = [[-1 if ship[r][c] == 1 else 0 for c in range(d)] for r in range(d)]
-    T, open_cells = compute_transition_matrix(ship)
+    T = compute_transition_matrix(ship, open_cells)
     num_open_cells = len(open_cells)
     uniform_prob_i = 1 / num_open_cells
     for r, c in open_cells:
@@ -802,7 +817,6 @@ def bot2_3(info, visualize, alpha):
 
     # Main rat-finding loop
     while not found:
-        # print("not found")
         # Find cell with highest probability
         highest_rat_prob = 0
         highest_rat_prob_cell = (-1, -1)
@@ -828,10 +842,10 @@ def bot2_3(info, visualize, alpha):
             visited = set()  # To prevent revisiting nodes unnecessarily
 
             while fringe:
-                # print("stuck in fringe, ")
+                if visualize: print("stuck in fringe, ")
                 _, curr = heapq.heappop(fringe)
                 if curr == target:
-                    # print("found target")
+                    if visualize: print("found target")
                     path = deque()
                     curr_p = curr
                     seen = set()  # Detect cycles during path reconstruction
@@ -894,8 +908,6 @@ def bot2_3(info, visualize, alpha):
             ping_result = ping(info, alpha)
             num_space_rat_pings += 1
             timesteps += 1
-
-            # print(f"bot position {bot_r, bot_c}, rat position {rat_r, rat_c}")
 
             if ping_result == 'Found':
                 print("in found")
@@ -1030,7 +1042,7 @@ def astar_with_heuristic(start, rat_prob_map, map, button):
                     heapq.heappush(fringe, (est_total_cost, child))
     return []        
 
-
+# Main for testing
 def main():
     random.seed(10)
 
