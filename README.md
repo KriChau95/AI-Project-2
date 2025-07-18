@@ -1,4 +1,4 @@
-# AI Project 2: Maze Bot for Rat Capture
+# Bayesian Agents for Stochastic Pursuit in Maze Environments
 
 ## Overview
 
@@ -78,8 +78,8 @@ Builds on the stationary Bot 2 with:
 
 ```bash
 # Clone the repository
-git clone https://github.com/KriChau95/AI-Project-1.git
-cd AI-Project-1
+git clone https://github.com/KriChau95/AI-Project-2.git
+cd AI-Project-2
 
 # Install required dependencies
 pip install numpy matplotlib
@@ -101,4 +101,4 @@ python plot.py
 
 ---
 
-Detailed Report
+## Detailed Report
