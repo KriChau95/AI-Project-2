@@ -72,8 +72,6 @@ Builds on the stationary Bot 2 with:
 - **Moving Rat**:  
   Bot 2 shows slight improvements over Bot 1, enhanced further by shorter path commitments and future position predictions
 
-Detailed analysis and visualizations are provided in the report.
-
 ---
 
 ## Installation
@@ -102,3 +100,5 @@ python plot.py
 ```
 
 ---
+
+Detailed Report
