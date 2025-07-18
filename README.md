@@ -102,3 +102,7 @@ python plot.py
 ---
 
 ## Detailed Report
+
+[Bayesian Agents for Stochastic Pursuit in Maze Environments.pdf](https://github.com/user-attachments/files/21323377/Bayesian.Agents.for.Stochastic.Pursuit.in.Maze.Environments.pdf)
+
+
