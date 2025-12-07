@@ -107,6 +107,6 @@ python plot.py
   <img src="./paper_2.png" width="300">
 </a>
 
-[Paper: Adaptive AI Navigation in Hazardous and Evolving Mazes](Bayesian_Agents_for_Stochastic_Pursuit_in_Maze_Environments.pdf)
+[Paper: Bayesian Agents for Stochastic Pursuit in Maze Environments](Bayesian_Agents_for_Stochastic_Pursuit_in_Maze_Environments.pdf)
 
 
