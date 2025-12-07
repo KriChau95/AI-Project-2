@@ -1,4 +1,4 @@
-# Bayesian Agents for Stochastic Pursuit in Maze Environments
+# Bayesian Agents for Stochastic Pursuit in Mazes
 
 ## Overview
 
